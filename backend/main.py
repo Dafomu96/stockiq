@@ -30,7 +30,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from backend.logging_config import bind_request_id, configure_logging
-from backend.routers import analyze, portfolio, simulate
+from backend.routers import analyze, compare, portfolio, simulate
 from backend.schemas import HealthResponse
 from config.exceptions import DataFetchError, InvalidTickerError, ModelAssumptionError
 from config.settings import settings
@@ -215,6 +215,7 @@ def create_app() -> FastAPI:
     app.include_router(analyze.router)
     app.include_router(portfolio.router)
     app.include_router(simulate.router)
+    app.include_router(compare.router)
 
     # ── Health ─────────────────────────────────────────────────────────────────
     @app.get("/health", response_model=HealthResponse, tags=["health"],

@@ -11,6 +11,7 @@ import Portfolio   from './pages/Portfolio'
 import Simulator   from './pages/Simulator'
 import Glossary    from './pages/Glossary'
 import Watchlist   from './pages/Watchlist'
+import Compare from './pages/Compare'
 
 const NAV = [
   { id: 'overview',    icon: '◈', label: 'Overview' },
@@ -20,6 +21,7 @@ const NAV = [
   { id: 'simulator',   icon: '◎', label: 'Simulator' },
   { id: 'watchlist',   icon: '★', label: 'Watchlist' },
   { id: 'glossary',    icon: '≡', label: 'Glossary' },
+  { id: 'compare', icon: '⇌', label: 'Compare' },
 ]
 
 export default function App() {
@@ -222,6 +224,7 @@ export default function App() {
           {page === 'portfolio'   && <Portfolio />}
           {page === 'simulator'   && <Simulator   analysisResult={result} />}
           {page === 'watchlist'   && <Watchlist   watchlist={watchlist} onAnalyse={handleWatchlistAnalyse} />}
+          {page === 'compare' && <Compare />}
           {page === 'glossary'    && <Glossary />}
         </div>
       </main>
