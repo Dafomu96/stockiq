@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAnalysis } from './hooks/useAnalysis'
 import { useWatchlist } from './hooks/useWatchlist'
+import { useHistory } from './hooks/useHistory'
 import './lib/i18n'
 
 import Overview    from './pages/Overview'
@@ -12,6 +13,8 @@ import Simulator   from './pages/Simulator'
 import Glossary    from './pages/Glossary'
 import Watchlist   from './pages/Watchlist'
 import Compare from './pages/Compare'
+import History from './pages/History'
+
 
 const NAV = [
   { id: 'overview',    icon: '◈', label: 'Overview' },
@@ -22,6 +25,7 @@ const NAV = [
   { id: 'watchlist',   icon: '★', label: 'Watchlist' },
   { id: 'glossary',    icon: '≡', label: 'Glossary' },
   { id: 'compare', icon: '⇌', label: 'Compare' },
+  { id: 'history', icon: '◷', label: 'History' },
 ]
 
 export default function App() {
@@ -30,11 +34,14 @@ export default function App() {
   const [input, setInput] = useState('')
   const { result, loading, error, run } = useAnalysis()
   const watchlist = useWatchlist()
+  const history = useHistory()
 
-  function handleAnalyse(e) {
-    e.preventDefault()
-    if (input.trim()) run(input.trim())
-  }
+  async function handleAnalyse(e) {
+  e.preventDefault()
+  if (!input.trim()) return
+  const data = await run(input.trim())
+  if (data) history.push(data)
+}
 
   function toggleLang() {
     i18n.changeLanguage(i18n.language === 'en' ? 'es' : 'en')
@@ -225,6 +232,11 @@ export default function App() {
           {page === 'simulator'   && <Simulator   analysisResult={result} />}
           {page === 'watchlist'   && <Watchlist   watchlist={watchlist} onAnalyse={handleWatchlistAnalyse} />}
           {page === 'compare' && <Compare />}
+          {page === 'history' && <History history={history} onReAnalyse={(ticker) => {
+            setInput(ticker)
+            run(ticker).then(data => { if (data) history.push(data) })
+            setPage('overview')
+          }} />}
           {page === 'glossary'    && <Glossary />}
         </div>
       </main>

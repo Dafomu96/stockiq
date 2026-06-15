@@ -1,8 +1,9 @@
 /**
  * useAnalysis — central state hook for the analysis pipeline.
  *
- * Encapsulates: loading state, error handling, result caching.
- * Components never call the API directly — they go through this hook.
+ * Change from original: run() now returns the result data (or null on error).
+ * This allows callers to push results to history or watchlist cache
+ * without needing a separate useEffect on the result state.
  */
 import { useState, useCallback } from 'react'
 import { analyze } from '../lib/api'
@@ -14,16 +15,18 @@ export function useAnalysis() {
   const [ticker, setTicker]   = useState('')
 
   const run = useCallback(async (symbol, period = '1y', strategy = 'weighted_average') => {
-    if (!symbol.trim()) return
+    if (!symbol.trim()) return null
     setLoading(true)
     setError(null)
     try {
       const data = await analyze(symbol.trim().toUpperCase(), period, strategy)
       setResult(data)
       setTicker(data.ticker)
+      return data      // callers can use this to push to history / watchlist cache
     } catch (err) {
       setError(err)
       setResult(null)
+      return null
     } finally {
       setLoading(false)
     }
