@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  
+  html {
+    background-color: #040812;
+    color: #e2e8f0;
+    font-family: 'DM Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #040812; }
+  ::-webkit-scrollbar-thumb { background: #1a2540; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2a3a5c; }
+}
+
+@layer components {
+  .card {
+    @apply bg-bg-card border border-bg-border rounded-xl p-5;
+  }
+
+  .metric-card {
+    @apply bg-bg-secondary border border-bg-border rounded-lg p-4;
+  }
+
+  .btn-primary {
+    @apply bg-accent hover:bg-blue-500 text-white font-body font-medium
+           px-5 py-2.5 rounded-lg transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply border border-bg-border hover:border-accent text-slate-400
+           hover:text-accent font-body font-medium px-4 py-2 rounded-lg
+           transition-all duration-150;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
+           font-body text-slate-400 hover:text-slate-100
+           hover:bg-white/5 transition-all duration-150 cursor-pointer;
+  }
+
+  .nav-item.active {
+    @apply bg-accent/10 text-accent border-l-2 border-accent pl-[10px];
+  }
+
+  .signal-buy    { @apply text-signal-buy; }
+  .signal-neutral { @apply text-signal-neutral; }
+  .signal-sell   { @apply text-signal-sell; }
+
+  .badge-buy     { @apply bg-signal-buy/10 text-signal-buy border border-signal-buy/20; }
+  .badge-neutral { @apply bg-signal-neutral/10 text-signal-neutral border border-signal-neutral/20; }
+  .badge-sell    { @apply bg-signal-sell/10 text-signal-sell border border-signal-sell/20; }
+
+  .score-bar-track {
+    @apply h-1.5 bg-bg-border rounded-full overflow-hidden;
+  }
+  .score-bar-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+  }
+}
+
+/* Page enter animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: fadeUp 0.3s ease-out both;
+}
+
+/* Staggered children */
+.stagger > * { animation: fadeUp 0.35s ease-out both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Pulse glow for signal dot */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+  50%       { box-shadow: 0 0 0 6px transparent; }
+}
+.signal-dot { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+/* Recharts custom */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #1a2540 !important;
+}
+.recharts-tooltip-wrapper { outline: none !important; }

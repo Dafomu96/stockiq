@@ -1,0 +1,208 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# StockIQ CI Pipeline
+#
+# Runs on every push to main and every PR targeting main.
+# Three jobs in dependency order:
+#
+#   quality  →  tests  →  docker
+#
+# quality: Lint (ruff), format check (black), type check (mypy)
+# tests:   pytest with coverage enforcement (≥85%), async tests included
+# docker:  Build both Docker images to confirm the build never breaks
+#
+# The pipeline is intentionally fast:
+#   - quality and tests run in parallel within their job
+#   - Docker builds only run on pushes to main (not on every PR commit)
+#   - Dependency caching via actions/setup-python cache: "pip"
+#
+# See: ADR-005 — Docker and CI strategy.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "feat/**", "fix/**", "chore/**"]
+  pull_request:
+    branches: ["main"]
+
+# Cancel in-progress runs on the same branch when a new push arrives.
+# This prevents stale runs from consuming CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Job 1: Code quality ────────────────────────────────────────────────────
+  quality:
+    name: Lint · Format · Types
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install quality tools
+        run: |
+          pip install \
+            ruff==0.4.0 \
+            black==24.4.0 \
+            mypy==1.10.0 \
+            pydantic==2.7.0 \
+            pydantic-settings==2.3.0
+
+      - name: Ruff — lint
+        run: ruff check .
+
+      - name: Black — format check
+        run: black --check --diff .
+
+      - name: Mypy — type check
+        # We check the analysis and config layers — the most type-sensitive.
+        # The Streamlit app layer uses dynamic dispatch and is excluded.
+        run: |
+          mypy \
+            config/ \
+            data/ \
+            analysis/ \
+            simulation/ \
+            backend/ \
+            --ignore-missing-imports \
+            --no-strict-optional
+
+  # ── Job 2: Tests + coverage ────────────────────────────────────────────────
+  tests:
+    name: Tests · Coverage ≥85%
+    runs-on: ubuntu-latest
+    # Run in parallel with quality — no dependency between them
+    # Both must pass before the docker job can start.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install all dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run test suite
+        run: |
+          pytest tests/ \
+            --asyncio-mode=auto \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=85 \
+            -q
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: github.event_name == 'push'
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # ── Job 3: Docker build validation ────────────────────────────────────────
+  docker:
+    name: Docker build (API + Streamlit)
+    runs-on: ubuntu-latest
+    needs: [quality, tests]
+    # Only build Docker images on pushes to main — not on every PR.
+    # Building is slow; validation (quality + tests) is the fast gate.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: runtime
+          push: false
+          # Cache layers between runs — speeds up builds on unchanged layers
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: stockiq-api:ci-${{ github.sha }}
+
+      - name: Build Streamlit image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.streamlit
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: stockiq-streamlit:ci-${{ github.sha }}
+
+      - name: Smoke test — API health endpoint
+        run: |
+          # Start the API container in the background
+          docker run -d \
+            --name stockiq_api_test \
+            -p 8000:8000 \
+            -e STOCKIQ_CACHE_DIR=/tmp/cache \
+            stockiq-api:ci-${{ github.sha }}
+
+          # Wait up to 30 seconds for the API to be ready
+          for i in $(seq 1 10); do
+            sleep 3
+            if curl -sf http://localhost:8000/health; then
+              echo "API is healthy"
+              break
+            fi
+            echo "Waiting for API... ($i/10)"
+          done
+
+          # Verify the response is correct JSON
+          RESPONSE=$(curl -sf http://localhost:8000/health)
+          echo "Health response: $RESPONSE"
+          echo "$RESPONSE" | python -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          assert data['status'] == 'ok', f'Expected ok, got {data[\"status\"]}'
+          print('Health check passed')
+          "
+
+          docker stop stockiq_api_test
+          docker rm stockiq_api_test
+
+  # ── Job 4: Frontend build + lint ──────────────────────────────────────────
+  frontend:
+    name: Frontend build · lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --frozen-lockfile
+
+      - name: Build (Vite production)
+        run: npm run build
+
+      - name: Check build output exists
+        run: test -f dist/index.html && echo "Build OK"

@@ -1,0 +1,31 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=. --cov-report=term-missing --cov-fail-under=85 --asyncio-mode=auto"
+# --asyncio-mode=auto: required for FastAPI integration tests (test_api.py)
+# --cov-fail-under=85: enforced in CI — coverage drops break the build
+
+[tool.coverage.run]
+omit = ["tests/*", "app/*", "frontend/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = ["E501"]  # line length handled by black
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+# strict = true enables: disallow_untyped_defs, warn_return_any,
+# warn_unused_ignores, and more — production-grade type safety

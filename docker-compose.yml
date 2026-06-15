@@ -1,0 +1,88 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# StockIQ — Docker Compose
+#
+# Services:
+#   api       FastAPI backend    → http://localhost:8000
+#             Swagger UI         → http://localhost:8000/docs
+#   frontend  React + nginx      → http://localhost:3000
+#   streamlit Streamlit MVP      → http://localhost:8501
+#
+# Usage:
+#   docker compose up                 # all services
+#   docker compose up api frontend    # API + React only
+#   docker compose down               # stop all
+#   docker compose logs -f api        # tail API logs
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── FastAPI backend ──────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: stockiq-api:latest
+    container_name: stockiq_api
+    ports:
+      - "8000:8000"
+    environment:
+      - STOCKIQ_CACHE_DIR=/app/.cache
+      - STOCKIQ_API_RATE_LIMIT=${API_RATE_LIMIT:-10/minute}
+      - STOCKIQ_RISK_FREE_RATE_FALLBACK=${RISK_FREE_RATE_FALLBACK:-0.045}
+    volumes:
+      - cache_data:/app/.cache
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - stockiq_net
+
+  # ── React + nginx frontend ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: stockiq-frontend:latest
+    container_name: stockiq_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - stockiq_net
+
+  # ── Streamlit MVP ────────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    image: stockiq-streamlit:latest
+    container_name: stockiq_streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - STOCKIQ_CACHE_DIR=/app/.cache
+    volumes:
+      - cache_data:/app/.cache
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - stockiq_net
+
+volumes:
+  cache_data:
+    driver: local
+
+networks:
+  stockiq_net:
+    driver: bridge

@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# pre-commit hooks for StockIQ
+#
+# Install once:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Run manually against all files:
+#   pre-commit run --all-files
+#
+# These are the same checks that run in CI — catching issues locally
+# before they reach the pipeline saves time and keeps the commit history clean.
+# ─────────────────────────────────────────────────────────────────────────────
+
+repos:
+  # ── Ruff: fast Python linter ────────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.0
+    hooks:
+      - id: ruff
+        args: [--fix]          # auto-fix safe issues
+      - id: ruff-format        # replaces black in ruff >= 0.3
+
+  # ── Black: code formatter ──────────────────────────────────────────────────
+  - repo: https://github.com/psf/black
+    rev: 24.4.0
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  # ── General hygiene ────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]    # reject accidental data files
+      - id: debug-statements   # catch leftover breakpoints
+      - id: no-commit-to-branch
+        args: [--branch, main] # force all work through PRs

@@ -1,0 +1,44 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+**/__pycache__
+**/*.py[cod]
+**/*.pyo
+**/.pytest_cache
+**/.coverage
+**/coverage.xml
+**/htmlcov
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv
+venv
+env
+
+# ── Local secrets and config ──────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Cache (rebuilt inside container) ─────────────────────────────────────────
+.cache
+
+# ── Dev / CI artefacts ────────────────────────────────────────────────────────
+.github
+.git
+.gitignore
+.pre-commit-config.yaml
+pyproject.toml
+
+# ── Tests (not needed in production image) ───────────────────────────────────
+tests
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+docs
+*.md
+
+# ── Node / frontend (Phase 4 future) ─────────────────────────────────────────
+node_modules
+frontend/node_modules
+frontend/dist
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
