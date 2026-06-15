@@ -1,72 +1,54 @@
 """
 FastAPI dependency injection for StockIQ.
 
-All shared resources — fetcher, cache, structured logging context —
-are provided via FastAPI's dependency system. This means:
-    - Every router gets the same fetcher instance (shared cache).
-    - Replacing the cache backend (JSON → Redis) is a one-line change here.
-    - Request logging is centralised and consistent.
-
-Usage in a router:
-    @router.post("/analyze")
-    async def analyze(
-        request: AnalyzeRequest,
-        fetcher: MarketDataFetcher = Depends(get_fetcher),
-    ) -> AnalyzeResponse:
-        ...
+get_fetcher   — shared MarketDataFetcher instance (one per process)
+log_request   — structured pre-request logging dependency
 """
 
 from __future__ import annotations
 
 import logging
-import time
 
-import structlog
 from fastapi import Request
 
 from data.fetcher import MarketDataFetcher
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
-# Module-level singleton — shared across all requests within a process.
-# The fetcher holds a reference to the cache backend; sharing it means
-# all requests benefit from the same in-process cache.
 _fetcher: MarketDataFetcher | None = None
 
 
 def get_fetcher() -> MarketDataFetcher:
-    """Dependency: return the shared MarketDataFetcher instance.
+    """Return the shared MarketDataFetcher instance.
 
-    The fetcher is created on first call and reused for all subsequent
-    requests. This ensures the JSON cache is shared across requests
-    within the same process.
+    Created on first call and reused for all subsequent requests.
+    All requests share the same JSON cache, so a cache warm from
+    one request benefits subsequent requests for the same ticker.
 
-    In tests, override with:
-        app.dependency_overrides[get_fetcher] = lambda: MockFetcher()
+    Override in tests:
+        app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
     """
     global _fetcher
     if _fetcher is None:
         _fetcher = MarketDataFetcher()
-        logger.info("fetcher_initialised cache=json_file")
+        logger.info("fetcher_initialised", extra={"cache": "json_file"})
     return _fetcher
 
 
 async def log_request(request: Request) -> None:
-    """Middleware-style dependency: log every incoming request.
+    """Log the incoming request path and method at DEBUG level.
 
-    Structured logging with request metadata. In production, pipe
-    these logs to a log aggregator (e.g. Datadog, CloudWatch).
+    The full request logging (with timing and status code) happens in
+    the middleware — this dependency just records which endpoint was hit,
+    before any handler logic runs.
 
-    Attach to any router with:
-        @router.post("/endpoint", dependencies=[Depends(log_request)])
+    It is intentionally lightweight: no body parsing, no header inspection.
     """
-    start = time.monotonic()
-    logger.info(
-        "request_received",
-        method=request.method,
-        path=request.url.path,
-        query=str(request.query_params),
-        client=request.client.host if request.client else "unknown",
+    logger.debug(
+        "endpoint_called",
+        extra={
+            "method":      request.method,
+            "path":        request.url.path,
+            "query":       str(request.query_params) or None,
+        },
     )
-    # We yield nothing — this is a before-only dependency
-    return None
