@@ -1,0 +1,84 @@
+{
+  "ticker": "AAPL",
+  "initial_investment": 10000.0,
+  "horizon_years": 10,
+  "scenarios": [
+    {
+      "label": "pessimistic",
+      "annual_rate": 0.04,
+      "final_value": 14802.44,
+      "total_gain": 4802.44,
+      "gain_pct": 48.02,
+      "cagr": 0.04
+    },
+    {
+      "label": "base",
+      "annual_rate": 0.1132,
+      "final_value": 29285.33,
+      "total_gain": 19285.33,
+      "gain_pct": 192.85,
+      "cagr": 0.1132
+    },
+    {
+      "label": "optimistic",
+      "annual_rate": 0.10,
+      "final_value": 25937.42,
+      "total_gain": 15937.42,
+      "gain_pct": 159.37,
+      "cagr": 0.10
+    }
+  ],
+  "dca": {
+    "monthly_contribution": 200.0,
+    "total_contributed": 34000.0,
+    "final_value_base": 75841.22,
+    "gain_from_dca": 46555.89,
+    "effective_cagr": 0.0832
+  },
+  "risk": {
+    "annual_volatility": 0.24,
+    "value_at_risk_95": 0.2448,
+    "max_drawdown_estimate": 0.48,
+    "sharpe_ratio": 0.2883,
+    "break_even_years": 2.4,
+    "volatility_source": "historical"
+  },
+  "break_even": {
+    "break_even_year_base": 1,
+    "break_even_year_pessimistic": 1,
+    "gordon_fair_value": 201.5,
+    "current_price": 182.4,
+    "is_undervalued": true,
+    "margin_of_safety": 0.1047
+  },
+  "year_by_year": [
+    {"year": 1,  "pessimistic": 10400.0,  "base": 11132.0,  "optimistic": 11000.0,  "dca_base": 13791.9},
+    {"year": 2,  "pessimistic": 10816.0,  "base": 12392.2,  "optimistic": 12100.0,  "dca_base": 16671.6},
+    {"year": 3,  "pessimistic": 11248.6,  "base": 13798.6,  "optimistic": 13310.0,  "dca_base": 19649.8},
+    {"year": 5,  "pessimistic": 12166.5,  "base": 17094.3,  "optimistic": 16105.1,  "dca_base": 26010.4},
+    {"year": 10, "pessimistic": 14802.4,  "base": 29285.3,  "optimistic": 25937.4,  "dca_base": 75841.2}
+  ],
+  "assumptions": {
+    "pessimistic_rate": "4.0%",
+    "base_rate": "11.3%",
+    "base_rate_source": "CAPM required return (11.3%)",
+    "optimistic_rate": "10.0%",
+    "annual_volatility": "24.0%",
+    "volatility_source": "historical",
+    "risk_free_rate": "4.5%",
+    "monthly_contribution": "200.00",
+    "return_type": "gross nominal (taxes and costs not deducted)",
+    "var_confidence": "95% parametric (Bodie et al. 2014, Ch.5)",
+    "sharpe_formula": "(base_rate - rf) / volatility (Sharpe 1994)"
+  },
+  "notes": [
+    "Base scenario (11.3%/yr): initial investment grows to 29,285 (+192.9%) over 10 years. Rate derived from CAPM required return.",
+    "Pessimistic scenario (4.0%/yr): models a below-average decade. Final value: 14,802 (+48.0%).",
+    "Optimistic scenario (10.0%/yr): models a strong decade. Final value: 25,937 (+159.4%).",
+    "DCA (200/month): regular contributions add 46,556 vs lump-sum only. Total contributed: 34,000. Effective CAGR: 8.3%.",
+    "Risk — Sharpe ratio: 0.29. VaR (95%, 1yr): 24.5% of investment. Estimated max drawdown: 48.0%.",
+    "Gordon margin of safety: 10.5% discount to intrinsic value.",
+    "Important: all returns are gross nominal. Taxes, inflation, and transaction costs will reduce real returns."
+  ],
+  "disclaimer": "All projections are illustrative only. They assume constant annual returns — real markets are volatile. Results are gross nominal returns and do not account for taxes, inflation, or transaction costs. Past performance does not guarantee future results. This is not financial advice."
+}

@@ -1,0 +1,135 @@
+{
+  "ticker": "AAPL",
+  "composite_score": 67.3,
+  "signal": "buy",
+  "strategy_name": "Weighted average (fundamental 50% / technical 50%)",
+  "weights": {"fundamental": 0.5, "technical": 0.5},
+  "score_breakdown": {
+    "fundamental": 61.2,
+    "technical": 73.4,
+    "composite": 67.3
+  },
+  "confidence": "medium",
+  "confidence_reasons": [
+    "Gordon Growth Model not applicable (no dividend). Fundamental score relies only on CAPM and P/E."
+  ],
+  "fundamental": {
+    "score": 61.2,
+    "signal": "buy",
+    "components": {
+      "capm": 55.0,
+      "pe_ratio": 60.0,
+      "dividend_yield": 5.3
+    },
+    "capm": {
+      "required_return": 0.1132,
+      "risk_free_rate": 0.045,
+      "market_return": 0.10,
+      "beta": 1.24,
+      "market_risk_premium": 0.055
+    },
+    "gordon": {
+      "fair_value": 201.5,
+      "current_price": 182.4,
+      "dividend": 0.96,
+      "discount_rate": 0.1132,
+      "growth_rate": 0.05,
+      "upside_pct": 10.47,
+      "assumption_warning": null
+    },
+    "pe": {
+      "actual_pe": 28.5,
+      "theoretical_pe": 15.9,
+      "forward_pe": 25.0,
+      "pe_gap": 12.6,
+      "interpretation": "overvalued"
+    },
+    "notes": [
+      "CAPM required return: 11.3% (β=1.24). Sub-score: 55/100.",
+      "Gordon fair value: $201.50 (current: $182.40, upside: +10.5%). Sub-score: 72/100.",
+      "P/E: actual=28.5, theoretical=15.9. Interpretation: overvalued. Sub-score: 60/100.",
+      "Dividend yield: 0.53%. Bonus: +5.3 pts."
+    ]
+  },
+  "technical": {
+    "score": 73.4,
+    "signal": "buy",
+    "components": {
+      "rsi": 80.0,
+      "macd": 80.0,
+      "bollinger": 50.0,
+      "moving_averages": 80.0,
+      "obv": 80.0,
+      "adx": 50.0
+    },
+    "rsi": {
+      "value": 52.3,
+      "signal": "neutral",
+      "overbought_threshold": 70.0,
+      "oversold_threshold": 30.0
+    },
+    "macd": {
+      "macd": 1.2341,
+      "signal_line": 0.9876,
+      "histogram": 0.2465,
+      "signal": "buy",
+      "is_bullish_crossover": true,
+      "is_bearish_crossover": false
+    },
+    "bollinger": {
+      "upper": 195.4,
+      "middle": 182.1,
+      "lower": 168.8,
+      "bandwidth": 0.0726,
+      "percent_b": 0.512,
+      "signal": "neutral"
+    },
+    "moving_averages": {
+      "sma_20": 180.3,
+      "sma_50": 175.6,
+      "sma_200": 162.4,
+      "ema_20": 181.2,
+      "current_price": 182.4,
+      "golden_cross": true,
+      "death_cross": false,
+      "price_above_sma200": true,
+      "signal": "buy"
+    },
+    "obv": {
+      "current_obv": 847293000.0,
+      "obv_sma": 821450000.0,
+      "volume_trend": "rising",
+      "confirms_price_trend": true,
+      "signal": "buy"
+    },
+    "adx": {
+      "adx": 22.4,
+      "plus_di": 18.3,
+      "minus_di": 12.1,
+      "trend_strength": "moderate",
+      "signal": "neutral"
+    },
+    "notes": [
+      "RSI(14): 52.3 — neutral zone. Thresholds: oversold <30, overbought >70. (Murphy, Technical Analysis, p.225)",
+      "MACD: 1.2341 | Signal: 0.9876 | Histogram: 0.2465. Bullish crossover detected. (Murphy, Technical Analysis, p.233)",
+      "Bollinger Bands: %B=0.51 (inside bands). Bandwidth=0.0726. (Murphy, Technical Analysis, p.209)",
+      "Moving averages: SMA50=175.6, SMA200=162.4. Golden Cross active. Price is above SMA200. (Murphy, Technical Analysis, p.193)",
+      "OBV trend: rising. Volume confirms price trend. (Murphy, Technical Analysis, p.171)",
+      "ADX: 22.4 — trend strength: moderate. +DI=18.3, -DI=12.1. (Murphy, Technical Analysis, p.344)"
+    ],
+    "data_quality_warnings": []
+  },
+  "summary_notes": [
+    "── Fundamental analysis (Shiller) ──",
+    "CAPM required return: 11.3% (β=1.24). Sub-score: 55/100.",
+    "Gordon fair value: $201.50 (current: $182.40, upside: +10.5%). Sub-score: 72/100.",
+    "P/E: actual=28.5, theoretical=15.9. Interpretation: overvalued. Sub-score: 60/100.",
+    "── Technical analysis (Murphy) ──",
+    "RSI(14): 52.3 — neutral zone.",
+    "MACD: Bullish crossover detected.",
+    "Moving averages: Golden Cross active (SMA50 > SMA200).",
+    "OBV: Volume confirms price trend."
+  ],
+  "analysed_at": "2025-06-01T10:00:00+00:00",
+  "disclaimer": "This analysis is for educational purposes only and does not constitute financial advice. All models are theoretical and based on historical data. Past performance does not guarantee future results. Data is End-of-Day (EOD) — not suitable for intraday trading decisions."
+}

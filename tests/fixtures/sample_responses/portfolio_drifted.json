@@ -1,0 +1,135 @@
+{
+  "positions": [
+    {
+      "asset_class": "domestic_equity",
+      "current_weight": 0.40,
+      "target_weight": 0.30,
+      "current_value": 20000.0,
+      "drift": 0.10,
+      "drift_pct": 10.0,
+      "needs_rebalancing": true,
+      "action": "sell",
+      "etf_ticker": "VTI",
+      "etf_name": "Vanguard Total Stock Market ETF",
+      "etf_expense_ratio": 0.0003,
+      "etf_ucits_alternative": "VUAA.L"
+    },
+    {
+      "asset_class": "international_equity",
+      "current_weight": 0.15,
+      "target_weight": 0.15,
+      "current_value": 7500.0,
+      "drift": 0.0,
+      "drift_pct": 0.0,
+      "needs_rebalancing": false,
+      "action": "hold",
+      "etf_ticker": "VXUS",
+      "etf_name": "Vanguard Total International Stock ETF",
+      "etf_expense_ratio": 0.0007,
+      "etf_ucits_alternative": "VWRL.L"
+    },
+    {
+      "asset_class": "emerging_markets",
+      "current_weight": 0.05,
+      "target_weight": 0.05,
+      "current_value": 2500.0,
+      "drift": 0.0,
+      "drift_pct": 0.0,
+      "needs_rebalancing": false,
+      "action": "hold",
+      "etf_ticker": "VWO",
+      "etf_name": "Vanguard FTSE Emerging Markets ETF",
+      "etf_expense_ratio": 0.0008,
+      "etf_ucits_alternative": "EIMI.L"
+    },
+    {
+      "asset_class": "real_estate",
+      "current_weight": 0.10,
+      "target_weight": 0.20,
+      "current_value": 5000.0,
+      "drift": -0.10,
+      "drift_pct": -10.0,
+      "needs_rebalancing": true,
+      "action": "buy",
+      "etf_ticker": "VNQ",
+      "etf_name": "Vanguard Real Estate ETF",
+      "etf_expense_ratio": 0.0012,
+      "etf_ucits_alternative": "IPRP.L"
+    },
+    {
+      "asset_class": "government_bonds",
+      "current_weight": 0.15,
+      "target_weight": 0.15,
+      "current_value": 7500.0,
+      "drift": 0.0,
+      "drift_pct": 0.0,
+      "needs_rebalancing": false,
+      "action": "hold",
+      "etf_ticker": "BND",
+      "etf_name": "Vanguard Total Bond Market ETF",
+      "etf_expense_ratio": 0.0003,
+      "etf_ucits_alternative": "VDTY.L"
+    },
+    {
+      "asset_class": "inflation_protected",
+      "current_weight": 0.15,
+      "target_weight": 0.15,
+      "current_value": 7500.0,
+      "drift": 0.0,
+      "drift_pct": 0.0,
+      "needs_rebalancing": false,
+      "action": "hold",
+      "etf_ticker": "SCHP",
+      "etf_name": "Schwab US TIPS ETF",
+      "etf_expense_ratio": 0.0003,
+      "etf_ucits_alternative": "ITPS.L"
+    }
+  ],
+  "rebalancing_actions": [
+    {
+      "asset_class": "domestic_equity",
+      "action": "sell",
+      "amount": 5000.0,
+      "current_weight": 0.40,
+      "target_weight": 0.30,
+      "etf_ticker": "VTI",
+      "rationale": "VTI is 10.0pp above its target of 30%. Reduce by approx. 5,000 to restore balance. Swensen (2005) p.195: rebalance when drift exceeds 5pp."
+    },
+    {
+      "asset_class": "real_estate",
+      "action": "buy",
+      "amount": 5000.0,
+      "current_weight": 0.10,
+      "target_weight": 0.20,
+      "etf_ticker": "VNQ",
+      "rationale": "VNQ is 10.0pp below its target of 20%. Increase by approx. 5,000 to restore balance. Swensen (2005) p.195: rebalance when drift exceeds 5pp."
+    }
+  ],
+  "total_portfolio_value": 50000.0,
+  "swensen_score": 60.0,
+  "needs_rebalancing": true,
+  "projection": {
+    "initial_investment": 50000.0,
+    "horizon_years": 10,
+    "pessimistic_rate": 0.04,
+    "base_rate": 0.072,
+    "optimistic_rate": 0.10,
+    "pessimistic_value": 74012.21,
+    "base_value": 100335.69,
+    "optimistic_value": 129687.12,
+    "year_by_year": [
+      {"year": 1, "pessimistic": 52000.0, "base": 53600.0, "optimistic": 55000.0},
+      {"year": 5, "pessimistic": 60832.6, "base": 70895.5, "optimistic": 80525.5},
+      {"year": 10, "pessimistic": 74012.2, "base": 100335.7, "optimistic": 129687.1}
+    ]
+  },
+  "annual_cost_estimate": 29.5,
+  "notes": [
+    "Swensen alignment score: 60/100.",
+    "Overweight positions to reduce: VTI. Selling what has risen most is counter-intuitive but essential to disciplined rebalancing.",
+    "Underweight positions to increase: VNQ.",
+    "Estimated annual portfolio cost: 29.50 (weighted average TER of recommended ETFs).",
+    "Investment horizon: Swensen's framework is designed for 10+ year horizons."
+  ],
+  "disclaimer": "This portfolio analysis is for educational purposes only. Swensen's model is a starting point, not a guarantee. Returns shown are gross historical averages."
+}
