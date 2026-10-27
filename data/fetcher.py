@@ -43,6 +43,36 @@ _FRED_URL = (
     f"?id={_FRED_SERIES}&vintage_date="
 )
 
+# Words that mark a failed yfinance download as a network problem
+# (blocked, rate-limited, offline) rather than an unknown ticker.
+_NETWORK_ERROR_MARKERS = (
+    "connection",
+    "timeout",
+    "timed out",
+    "rate limit",
+    "ratelimit",
+    "too many requests",
+    "curl",
+    "httperror",
+    "ssl",
+    "proxy",
+)
+
+
+def _download_error(ticker: str) -> str | None:
+    """Return the error yfinance recorded for *ticker* in its last download.
+
+    yf.download() does not raise when a request fails: it returns an empty
+    DataFrame and keeps the reason in yf.shared._ERRORS (a private dict, so
+    read defensively). Without this, a blocked or offline request looks
+    exactly like a ticker that does not exist.
+    """
+    errors = getattr(getattr(yf, "shared", None), "_ERRORS", None)
+    if not isinstance(errors, dict):
+        return None
+    value = errors.get(ticker) or errors.get(ticker.upper())
+    return str(value) if value else None
+
 
 class MarketDataFetcher:
     """Fetches, caches, and validates market data for a given ticker.
@@ -133,6 +163,9 @@ class MarketDataFetcher:
             raise DataFetchError(ticker, f"yfinance download raised: {exc}") from exc
 
         if raw.empty:
+            reason = _download_error(ticker)
+            if reason and any(m in reason.lower() for m in _NETWORK_ERROR_MARKERS):
+                raise DataFetchError(ticker, f"yfinance download failed: {reason}")
             raise InvalidTickerError(ticker)
 
         df = self._clean_ohlcv(raw, ticker)

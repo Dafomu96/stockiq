@@ -139,6 +139,31 @@ class TestGetOhlcv:
 
         assert "NOTAREAL" in str(exc_info.value)
 
+    def test_network_failure_is_not_reported_as_unknown_ticker(self, fetcher):
+        """yfinance returns an empty frame when blocked; the reason decides."""
+        import data.fetcher as fetcher_module
+
+        blocked = {"AAPL": "ConnectionError('curl: (7) CONNECT tunnel failed')"}
+        with (
+            patch("data.fetcher.yf.download", return_value=pd.DataFrame()),
+            patch.object(fetcher_module.yf.shared, "_ERRORS", blocked),
+        ):
+            with pytest.raises(DataFetchError) as exc_info:
+                fetcher.get_ohlcv("AAPL")
+
+        assert "ConnectionError" in str(exc_info.value)
+
+    def test_delisted_ticker_is_still_invalid(self, fetcher):
+        import data.fetcher as fetcher_module
+
+        delisted = {"OLDCO": "YFTzMissingError('possibly delisted; no timezone found')"}
+        with (
+            patch("data.fetcher.yf.download", return_value=pd.DataFrame()),
+            patch.object(fetcher_module.yf.shared, "_ERRORS", delisted),
+        ):
+            with pytest.raises(InvalidTickerError):
+                fetcher.get_ohlcv("OLDCO")
+
     def test_raises_data_fetch_error_when_yfinance_throws(self, fetcher):
         with patch("data.fetcher.yf.download", side_effect=Exception("timeout")):
             with pytest.raises(DataFetchError) as exc_info:
