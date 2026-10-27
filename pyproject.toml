@@ -2,6 +2,7 @@
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "--cov=. --cov-report=term-missing --cov-fail-under=85 --asyncio-mode=auto"
+asyncio_default_fixture_loop_scope = "function"
 # --asyncio-mode=auto: required for FastAPI integration tests (test_api.py)
 # --cov-fail-under=85: enforced in CI — coverage drops break the build
 
