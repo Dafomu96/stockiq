@@ -63,6 +63,9 @@ class MarketDataFetcher:
 
     def __init__(self, cache: CacheBackend | None = None) -> None:
         self._cache = cache or get_cache()
+        # Where the last get_risk_free_rate() value came from:
+        # "fred", "cache" or "fallback" (None until the first call).
+        self.rf_source: str | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -195,7 +198,9 @@ class MarketDataFetcher:
         The yield is returned as a decimal (e.g. 4.5% → 0.045).
 
         Falls back to settings.risk_free_rate_fallback if FRED is
-        unreachable, and logs a warning so the UI can surface it.
+        unreachable and logs a warning. The fallback is not cached, so the
+        next call tries FRED again. ``self.rf_source`` records where the
+        value came from ("fred", "cache" or "fallback").
 
         Returns:
             Risk-free rate as a float in [0, 1].
@@ -208,24 +213,31 @@ class MarketDataFetcher:
         cached = self._cache.get(cache_key)
         if cached is not None:
             logger.info("risk_free_rate_cache_hit value=%.4f", cached)
+            self.rf_source = "cache"
             return float(cached)
 
         logger.info("risk_free_rate_fetch source=FRED series=%s", _FRED_SERIES)
         rate = self._fetch_fred_rate()
+        if rate is None:
+            # Do not cache the fallback: a short FRED outage would otherwise
+            # pin the default rate for the whole cache TTL (7 days).
+            self.rf_source = "fallback"
+            return settings.risk_free_rate_fallback
+
         self._cache.set(cache_key, rate, settings.cache_ttl_risk_free_rate)
         logger.info("risk_free_rate_fetched value=%.4f", rate)
+        self.rf_source = "fred"
         return rate
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _fetch_fred_rate(self) -> float:
-        """Download DGS10 from FRED and return as decimal.
+    def _fetch_fred_rate(self) -> float | None:
+        """Download DGS10 from FRED and return it as a decimal.
 
         If the request fails for any reason, logs a warning and returns
-        settings.risk_free_rate_fallback rather than crashing — the
-        CAPM result will still be meaningful with a reasonable fallback.
+        None; get_risk_free_rate() then uses the configured fallback.
         """
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         url = _FRED_URL + today
@@ -247,11 +259,11 @@ class MarketDataFetcher:
 
         except (requests.RequestException, ValueError, DataFetchError) as exc:
             logger.warning(
-                "risk_free_rate_fetch_failed error=%s " "fallback=%.4f",
+                "risk_free_rate_fetch_failed error=%s fallback=%.4f",
                 exc,
                 settings.risk_free_rate_fallback,
             )
-            return settings.risk_free_rate_fallback
+            return None
 
     @staticmethod
     def _clean_ohlcv(df: pd.DataFrame, ticker: str) -> pd.DataFrame:

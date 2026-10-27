@@ -283,3 +283,49 @@ class TestGetRiskFreeRate:
             rate = fetcher.get_risk_free_rate()
 
         assert rate == pytest.approx(0.043, abs=1e-6)
+
+    def test_fallback_is_not_cached(self, fetcher):
+        """A FRED outage must not pin the fallback rate for the cache TTL."""
+        import requests as req_lib
+
+        ok_resp = MagicMock()
+        ok_resp.status_code = 200
+        ok_resp.text = "DATE,DGS10\n2024-01-15,4.10\n"
+        ok_resp.raise_for_status = MagicMock()
+
+        with patch(
+            "data.fetcher.requests.get",
+            side_effect=[req_lib.RequestException("timeout"), ok_resp],
+        ) as mock_get:
+            first = fetcher.get_risk_free_rate()
+            second = fetcher.get_risk_free_rate()
+
+        from config.settings import settings
+
+        assert first == settings.risk_free_rate_fallback
+        assert second == pytest.approx(0.041, abs=1e-6)
+        assert mock_get.call_count == 2
+
+    def test_rf_source_reports_where_the_rate_came_from(self, fetcher, tmp_path):
+        import requests as req_lib
+
+        ok_resp = MagicMock()
+        ok_resp.status_code = 200
+        ok_resp.text = "DATE,DGS10\n2024-01-15,4.10\n"
+        ok_resp.raise_for_status = MagicMock()
+
+        assert fetcher.rf_source is None
+        with patch("data.fetcher.requests.get", return_value=ok_resp):
+            fetcher.get_risk_free_rate()
+            assert fetcher.rf_source == "fred"
+            fetcher.get_risk_free_rate()
+            assert fetcher.rf_source == "cache"
+
+        fresh = MarketDataFetcher(
+            cache=JsonFileCache(cache_dir=str(tmp_path / "other"))
+        )
+        with patch(
+            "data.fetcher.requests.get", side_effect=req_lib.RequestException("down")
+        ):
+            fresh.get_risk_free_rate()
+        assert fresh.rf_source == "fallback"
