@@ -23,10 +23,10 @@ import logging
 import time
 from datetime import UTC, datetime
 
-import pandas_ta as _ta  # noqa: F401
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from analysis.fundamentals import compute_fundamental_score
+from analysis.pipeline import add_indicators
 from analysis.scoring import (
     FundamentalOnlyStrategy,
     ScoringStrategy,
@@ -81,16 +81,7 @@ def _analyse_ticker(
         ) from exc
 
     # Compute indicators
-    df_ind = df.copy()
-    df_ind.ta.rsi(length=14, append=True)
-    df_ind.ta.macd(fast=12, slow=26, signal=9, append=True)
-    df_ind.ta.bbands(length=20, std=2, append=True)
-    df_ind.ta.sma(length=20, append=True)
-    df_ind.ta.sma(length=50, append=True)
-    df_ind.ta.sma(length=200, append=True)
-    df_ind.ta.ema(length=20, append=True)
-    df_ind.ta.obv(append=True)
-    df_ind.ta.adx(length=14, append=True)
+    df_ind = add_indicators(df)
 
     current_price = info.get("regularMarketPrice") or float(df["Close"].iloc[-1])
 
