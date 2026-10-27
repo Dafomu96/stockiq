@@ -22,6 +22,7 @@ See: ADR-001 — Why yfinance over Polygon.io for the MVP.
 """
 
 import logging
+import math
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -57,6 +58,22 @@ _NETWORK_ERROR_MARKERS = (
     "ssl",
     "proxy",
 )
+
+
+def json_safe(value: Any) -> Any:
+    """Copy of *value* that json.dumps accepts and any JSON reader can load.
+
+    NaN and infinity become None; values that are not JSON types become str.
+    """
+    if isinstance(value, dict):
+        return {str(k): json_safe(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [json_safe(v) for v in value]
+    if isinstance(value, float):
+        return None if math.isnan(value) or math.isinf(value) else value
+    if value is None or isinstance(value, str | int | bool):
+        return value
+    return str(value)
 
 
 def _dividend_yield(raw: dict[str, Any]) -> float | None:
@@ -233,19 +250,29 @@ class MarketDataFetcher:
             logger.info("info_cache_hit ticker=%s", ticker)
             return cast(dict[str, Any], cached)
 
-        logger.info("info_fetch ticker=%s source=yfinance", ticker)
-        try:
-            raw_info: dict[str, Any] = yf.Ticker(ticker).info
-        except Exception as exc:
-            raise DataFetchError(ticker, f"yfinance .info raised: {exc}") from exc
-
-        if not raw_info or raw_info.get("regularMarketPrice") is None:
-            raise InvalidTickerError(ticker)
-
+        raw_info = self._fetch_raw_info(ticker)
         info = self._extract_fundamental_fields(raw_info)
         self._cache.set(cache_key, info, settings.cache_ttl_fundamentals)
         logger.info("info_fetched ticker=%s sector=%s", ticker, info.get("sector"))
         return info
+
+    def get_raw_info(self, ticker: str) -> dict[str, Any]:
+        """Return the complete yfinance .info dict for *ticker*.
+
+        get_fundamental_info() keeps only the fields the model uses today;
+        this returns everything Yahoo sent (free cash flow, debt, margins,
+        shares outstanding, ...), JSON-safe (NaN becomes None). It reuses
+        the response cached by get_fundamental_info(), so calling both
+        costs one request.
+
+        Raises:
+            InvalidTickerError: If yfinance returns no info dict.
+            DataFetchError: For any other failure.
+        """
+        cached = self._cache.get(f"info_raw:{ticker}")
+        if cached is not None:
+            return cast(dict[str, Any], cached)
+        return self._fetch_raw_info(ticker)
 
     def get_risk_free_rate(self) -> float:
         """Return the current US 10-Year Treasury yield as a decimal.
@@ -288,6 +315,26 @@ class MarketDataFetcher:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _fetch_raw_info(self, ticker: str) -> dict[str, Any]:
+        """Download yfinance .info, validate it and cache the full response."""
+        logger.info("info_fetch ticker=%s source=yfinance", ticker)
+        try:
+            raw_info: dict[str, Any] = yf.Ticker(ticker).info
+        except Exception as exc:
+            raise DataFetchError(ticker, f"yfinance .info raised: {exc}") from exc
+
+        if not raw_info or raw_info.get("regularMarketPrice") is None:
+            raise InvalidTickerError(ticker)
+
+        raw_info = json_safe(raw_info)
+        try:
+            self._cache.set(
+                f"info_raw:{ticker}", raw_info, settings.cache_ttl_fundamentals
+            )
+        except Exception as exc:  # caching the raw copy is optional
+            logger.warning("info_raw_cache_failed ticker=%s error=%s", ticker, exc)
+        return raw_info
 
     def _fetch_fred_rate(self) -> float | None:
         """Download DGS10 from FRED and return it as a decimal.

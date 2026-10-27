@@ -247,6 +247,39 @@ class TestGetFundamentalInfo:
 
         assert info["dividendYield"] is None
 
+    def test_raw_info_reuses_the_same_request(self, fetcher):
+        """get_raw_info after get_fundamental_info must not call Yahoo again."""
+        mock_ticker = MagicMock()
+        mock_ticker.info = {
+            "regularMarketPrice": 100.0,
+            "freeCashflow": 2_500_000_000,
+            "profitMargins": float("nan"),
+            "companyOfficers": [{"name": "A", "age": float("inf")}],
+        }
+        with patch("data.fetcher.yf.Ticker", return_value=mock_ticker) as mock_cls:
+            fetcher.get_fundamental_info("XYZ")
+            raw = fetcher.get_raw_info("XYZ")
+
+        assert mock_cls.call_count == 1
+        assert raw["freeCashflow"] == 2_500_000_000
+        assert raw["profitMargins"] is None  # NaN is not valid JSON
+        assert raw["companyOfficers"][0]["age"] is None
+
+    def test_raw_info_fetches_when_not_cached(self, fetcher):
+        mock_ticker = MagicMock()
+        mock_ticker.info = {"regularMarketPrice": 100.0, "totalDebt": 42}
+        with patch("data.fetcher.yf.Ticker", return_value=mock_ticker):
+            raw = fetcher.get_raw_info("XYZ")
+
+        assert raw["totalDebt"] == 42
+
+    def test_raw_info_invalid_ticker_raises(self, fetcher):
+        mock_ticker = MagicMock()
+        mock_ticker.info = {}
+        with patch("data.fetcher.yf.Ticker", return_value=mock_ticker):
+            with pytest.raises(InvalidTickerError):
+                fetcher.get_raw_info("NOPE")
+
     def test_missing_fields_are_none_not_keyerror(self, fetcher):
         """If yfinance omits a field, we return None — never KeyError."""
         sparse_info = {"regularMarketPrice": 100.0}  # most fields missing
@@ -383,3 +416,21 @@ class TestGetRiskFreeRate:
         ):
             fresh.get_risk_free_rate()
         assert fresh.rf_source == "fallback"
+
+
+# ---------------------------------------------------------------------------
+# json_safe
+# ---------------------------------------------------------------------------
+
+
+def test_json_safe_makes_any_value_serialisable():
+    import json
+    from datetime import date
+
+    from data.fetcher import json_safe
+
+    value = {"a": float("nan"), "b": (1, 2.5), "c": date(2026, 10, 31), 3: True}
+    safe = json_safe(value)
+
+    assert safe == {"a": None, "b": [1, 2.5], "c": "2026-10-31", "3": True}
+    json.dumps(safe, allow_nan=False)  # must not raise

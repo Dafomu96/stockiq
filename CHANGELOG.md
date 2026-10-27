@@ -13,6 +13,9 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Weekly snapshots: `scripts/snapshot.py` scores `snapshots/watchlist.txt` and appends the
   rows to one file per year, `snapshots/scores_<year>.csv`, plus an Excel copy
   (`scores_<year>.xlsx`); `.github/workflows/snapshot.yml` runs it every Saturday.
+- Each snapshot run also saves the complete Yahoo response per ticker in
+  `snapshots/raw/<year>/<date>.json.gz` (`MarketDataFetcher.get_raw_info`), so future models
+  can use fields the current one ignores.
 - `analysis/pipeline.py`: one shared analysis pipeline instead of three copies of the
   indicator list (API routers and Streamlit app).
 - `MarketDataFetcher.rf_source`: where the last risk-free rate came from.

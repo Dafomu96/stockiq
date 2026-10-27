@@ -11,19 +11,25 @@ are stored with today's date, which yfinance cannot give you afterwards.
 Months later the stored scores can be checked against what prices did.
 
 Each row also keeps the raw inputs (beta, P/E, dividend, risk-free rate),
-so the scores can be recomputed if the model changes.
+so the scores can be recomputed if the model changes. On top of that, the
+complete Yahoo response for every ticker (free cash flow, debt, margins,
+shares outstanding, ...) is stored in snapshots/raw/<year>/<date>.json.gz,
+for models that need fields the current one does not use.
 
 Usage:
     python -m scripts.snapshot
     python -m scripts.snapshot --watchlist snapshots/watchlist.txt \\
         --out "snapshots/scores_{year}.csv" --benchmark SPY --pause 2
     python -m scripts.snapshot --no-excel      # CSV only
+    python -m scripts.snapshot --no-raw        # skip the full Yahoo responses
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import gzip
+import json
 import logging
 import math
 import os
@@ -32,13 +38,14 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from importlib import metadata
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import pandas as pd
 
 from analysis.pipeline import analyse
-from data.fetcher import MarketDataFetcher
+from data.fetcher import MarketDataFetcher, json_safe
 
 logger = logging.getLogger("stockiq.snapshot")
 
@@ -88,6 +95,8 @@ class Fetcher(Protocol):
 
     def get_fundamental_info(self, ticker: str) -> dict[str, Any]: ...
 
+    def get_raw_info(self, ticker: str) -> dict[str, Any]: ...
+
     def get_risk_free_rate(self) -> float: ...
 
 
@@ -103,6 +112,9 @@ class RunSummary:
     benchmark_close: float | None = None
     csv_path: str = ""
     excel_path: str = ""
+    raw_path: str = ""
+    raw_count: int = 0
+    raw_missing: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +170,50 @@ def export_excel(csv_path: Path) -> Path:
             width = max(width, len(str(column[0].value)))
             ws.column_dimensions[column[0].column_letter].width = min(width + 2, 40)
     return xlsx_path
+
+
+def raw_path_for(csv_path: Path, run_date: str) -> Path:
+    """Where a run's full Yahoo responses go: <csv dir>/raw/<year>/<date>.json.gz."""
+    return csv_path.parent / "raw" / run_date[:4] / f"{run_date}.json.gz"
+
+
+def read_raw_infos(path: Path) -> dict[str, Any]:
+    """Load a raw file: {"run_date", "code_version", "yfinance_version", "tickers"}."""
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        return cast(dict[str, Any], json.load(fh))
+
+
+def write_raw_infos(
+    path: Path, run_date: str, code_version: str, infos: dict[str, dict[str, Any]]
+) -> int:
+    """Write (or extend) a run's raw file and return how many tickers it holds.
+
+    A re-run on the same day adds the newly fetched tickers to the file
+    instead of replacing it. The gzip header carries no timestamp, so an
+    unchanged file stays byte-identical.
+    """
+    tickers: dict[str, Any] = {}
+    if path.exists():
+        tickers.update(read_raw_infos(path).get("tickers", {}))
+    tickers.update(json_safe(infos))
+    try:
+        yf_version = metadata.version("yfinance")
+    except metadata.PackageNotFoundError:
+        yf_version = "unknown"
+    payload = {
+        "run_date": run_date,
+        "code_version": code_version,
+        "yfinance_version": yf_version,
+        "tickers": tickers,
+    }
+    data = json.dumps(payload, sort_keys=True, ensure_ascii=False, allow_nan=False)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with (
+        path.open("wb") as fh,
+        gzip.GzipFile(filename="", mode="wb", fileobj=fh, mtime=0) as gz,
+    ):
+        gz.write(data.encode("utf-8"))
+    return len(tickers)
 
 
 def _num(value: Any, digits: int = 6) -> float | str:
@@ -270,12 +326,14 @@ def run_snapshot(
     pause_seconds: float = 0.0,
     sleep: Callable[[float], None] = time.sleep,
     excel: bool = False,
+    raw: bool = False,
 ) -> RunSummary:
     """Analyse every ticker and append the rows to the CSV.
 
     *out_path* may contain ``{year}``; it is replaced by the year of the
     run, so each year gets its own file. With ``excel=True`` an .xlsx copy
-    of that file is written next to it.
+    of that file is written next to it. With ``raw=True`` the complete Yahoo
+    response of every ticker that succeeded is saved to raw_path_for().
 
     Re-running on the same day skips tickers that already have an "ok" row
     for that date and retries the ones that failed.
@@ -300,6 +358,7 @@ def run_snapshot(
         writer = csv.DictWriter(fh, fieldnames=COLUMNS)
         if write_header:
             writer.writeheader()
+        raw_infos: dict[str, dict[str, Any]] = {}
         first = True
         for ticker in tickers:
             if (run_date, ticker) in done:
@@ -321,7 +380,17 @@ def run_snapshot(
             writer.writerow(row)
             fh.flush()
             (summary.ok if row["status"] == "ok" else summary.failed).append(ticker)
+            if raw and row["status"] == "ok":
+                try:
+                    raw_infos[ticker] = fetcher.get_raw_info(ticker)
+                except Exception as exc:  # the CSV row is already safe
+                    logger.warning("raw_info_failed ticker=%s error=%s", ticker, exc)
+                    summary.raw_missing.append(ticker)
 
+    if raw and raw_infos:
+        raw_file = raw_path_for(out_path, run_date)
+        summary.raw_count = write_raw_infos(raw_file, run_date, code_version, raw_infos)
+        summary.raw_path = str(raw_file)
     if excel:
         summary.excel_path = str(export_excel(out_path))
     return summary
@@ -339,6 +408,17 @@ def format_summary(summary: RunSummary) -> str:
         f"- Risk-free rate source: {summary.rf_source}",
         f"- File: {summary.csv_path}"
         + (f" (+ {Path(summary.excel_path).name})" if summary.excel_path else ""),
+        "- Raw Yahoo data: "
+        + (
+            f"{summary.raw_path} ({summary.raw_count} tickers)"
+            if summary.raw_path
+            else "not saved"
+        )
+        + (
+            f", missing: {', '.join(summary.raw_missing)}"
+            if summary.raw_missing
+            else ""
+        ),
         "- Benchmark close: "
         + (
             "missing"
@@ -362,6 +442,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--no-excel", action="store_true", help="do not write the .xlsx copy"
     )
+    parser.add_argument(
+        "--no-raw", action="store_true", help="do not save the full Yahoo responses"
+    )
     parser.add_argument("--benchmark", default=DEFAULT_BENCHMARK)
     parser.add_argument(
         "--pause", type=float, default=2.0, help="seconds to wait between tickers"
@@ -383,6 +466,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         code_version=os.environ.get("GITHUB_SHA", "local")[:7],
         pause_seconds=args.pause,
         excel=not args.no_excel,
+        raw=not args.no_raw,
     )
 
     text = format_summary(summary)

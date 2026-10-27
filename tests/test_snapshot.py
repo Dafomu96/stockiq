@@ -20,6 +20,8 @@ from scripts.snapshot import (
     export_excel,
     format_summary,
     load_watchlist,
+    raw_path_for,
+    read_raw_infos,
     resolve_out_path,
     run_snapshot,
 )
@@ -33,6 +35,11 @@ def _rows(path: Path) -> list[dict[str, str]]:
 @pytest.fixture()
 def fetcher(mock_fetcher):
     mock_fetcher.rf_source = "fred"
+    mock_fetcher.get_raw_info.side_effect = lambda ticker: {
+        "symbol": ticker,
+        "freeCashflow": 1_000_000_000,
+        "totalDebt": 5_000_000_000,
+    }
     return mock_fetcher
 
 
@@ -249,6 +256,77 @@ class TestYearlyFiles:
 
 
 # ---------------------------------------------------------------------------
+# Full Yahoo responses
+# ---------------------------------------------------------------------------
+
+
+class TestRawInfos:
+    def test_saves_the_full_response_of_ok_tickers(self, fetcher, tmp_path):
+        _fail_for(fetcher, "BAD", DataFetchError("BAD", "blocked"))
+        out = tmp_path / "scores_{year}.csv"
+
+        summary = run_snapshot(
+            ["AAPL", "BAD", "MSFT"],
+            fetcher,
+            out,
+            run_date="2026-10-31",
+            code_version="abc1234",
+            raw=True,
+        )
+
+        path = tmp_path / "raw" / "2026" / "2026-10-31.json.gz"
+        assert summary.raw_path == str(path)
+        assert summary.raw_count == 2
+        payload = read_raw_infos(path)
+        assert payload["run_date"] == "2026-10-31"
+        assert payload["code_version"] == "abc1234"
+        assert set(payload["tickers"]) == {"AAPL", "MSFT"}  # not the failed one
+        assert payload["tickers"]["AAPL"]["freeCashflow"] == 1_000_000_000
+
+    def test_rerun_same_day_adds_to_the_file(self, fetcher, tmp_path):
+        out = tmp_path / "scores.csv"
+        _fail_for(fetcher, "BAD", DataFetchError("BAD", "blocked"))
+        run_snapshot(["AAPL", "BAD"], fetcher, out, run_date="2026-10-31", raw=True)
+
+        fetcher.get_ohlcv.side_effect = None
+        summary = run_snapshot(
+            ["AAPL", "BAD"], fetcher, out, run_date="2026-10-31", raw=True
+        )
+
+        assert summary.raw_count == 2
+        payload = read_raw_infos(raw_path_for(out, "2026-10-31"))
+        assert set(payload["tickers"]) == {"AAPL", "BAD"}
+
+    def test_raw_failure_keeps_the_csv_row(self, fetcher, tmp_path):
+        fetcher.get_raw_info.side_effect = DataFetchError("AAPL", "timeout")
+        out = tmp_path / "scores.csv"
+
+        summary = run_snapshot(["AAPL"], fetcher, out, run_date="2026-10-31", raw=True)
+
+        assert summary.ok == ["AAPL"]
+        assert summary.raw_missing == ["AAPL"]
+        assert summary.raw_path == ""
+        assert "missing: AAPL" in format_summary(summary)
+
+    def test_off_by_default_in_the_function(self, fetcher, tmp_path):
+        run_snapshot(["AAPL"], fetcher, tmp_path / "scores.csv", run_date="2026-10-31")
+        assert not (tmp_path / "raw").exists()
+        fetcher.get_raw_info.assert_not_called()
+
+    def test_unchanged_file_is_byte_identical(self, fetcher, tmp_path):
+        out = tmp_path / "scores.csv"
+        run_snapshot(["AAPL"], fetcher, out, run_date="2026-10-31", raw=True)
+        path = raw_path_for(out, "2026-10-31")
+        first = path.read_bytes()
+
+        # same day, nothing new to fetch: the file is rewritten with no change
+        from scripts.snapshot import write_raw_infos
+
+        write_raw_infos(path, "2026-10-31", "local", {})
+        assert path.read_bytes() == first
+
+
+# ---------------------------------------------------------------------------
 # Helpers and CLI
 # ---------------------------------------------------------------------------
 
@@ -305,6 +383,7 @@ class TestMain:
         out = csv_files[0]
         assert out.stem[-4:].isdigit()
         assert out.with_suffix(".xlsx").exists()  # Excel copy is on by default
+        assert list((tmp_path / "raw").rglob("*.json.gz"))  # raw data is on by default
         rows = _rows(out)
         assert [r["ticker"] for r in rows] == ["AAPL", "MSFT"]
         assert rows[0]["code_version"] == "0123456"
@@ -329,6 +408,26 @@ class TestMain:
 
         assert out.exists()
         assert not out.with_suffix(".xlsx").exists()
+
+    def test_no_raw_flag(self, fetcher, watchlist, tmp_path, monkeypatch):
+        monkeypatch.setattr(snapshot, "MarketDataFetcher", lambda: fetcher)
+        monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+        out = tmp_path / "scores.csv"
+
+        snapshot.main(
+            [
+                "--watchlist",
+                str(watchlist),
+                "--out",
+                str(out),
+                "--pause",
+                "0",
+                "--no-raw",
+            ]
+        )
+
+        assert out.exists()
+        assert not (tmp_path / "raw").exists()
 
     def test_all_failed_returns_1(self, fetcher, watchlist, tmp_path, monkeypatch):
         fetcher.get_ohlcv.side_effect = DataFetchError("X", "blocked")

@@ -79,7 +79,8 @@ stockiq/
 ├── snapshots/
 │   ├── watchlist.txt      # Tickers scored every week
 │   ├── scores_2026.csv    # History, one file per year, appended by the job
-│   └── scores_2026.xlsx   # Excel copy of that year's file, rebuilt every run
+│   ├── scores_2026.xlsx   # Excel copy of that year's file, rebuilt every run
+│   └── raw/2026/          # Full Yahoo response per run (<date>.json.gz)
 ├── tests/                 # 380 tests, 94% coverage, 100% offline
 └── docs/adr/              # ADR-001 through ADR-007
 ```
@@ -184,9 +185,21 @@ was the default fallback, and the commit that produced it. With the inputs store
 can be recomputed if the model changes. Failed tickers are stored as `status=error` rows with
 the reason, so gaps in the history are visible.
 
+Better models will need fields the current one ignores (free cash flow, debt, margins, shares
+outstanding, buybacks), and their past values cannot be downloaded later. So each run also
+saves the complete Yahoo response of every ticker in `snapshots/raw/<year>/<date>.json.gz`:
+
+```python
+from pathlib import Path
+from scripts.snapshot import read_raw_infos
+
+raw = read_raw_infos(Path("snapshots/raw/2026/2026-10-31.json.gz"))
+raw["tickers"]["AAPL"]["freeCashflow"]
+```
+
 ```bash
 python -m scripts.snapshot                 # run it locally (same files)
-python -m scripts.snapshot --pause 0 --out test.csv --no-excel   # quick test run
+python -m scripts.snapshot --pause 0 --out test.csv --no-excel --no-raw   # quick test run
 ```
 
 In GitHub: **Actions → Weekly snapshot → Run workflow** runs it by hand. It costs nothing on

@@ -3,7 +3,8 @@
 #
 # Every Saturday, scores each ticker in snapshots/watchlist.txt and appends
 # the rows to that year's file (snapshots/scores_2026.csv, then _2027...) plus
-# an Excel copy (scores_2026.xlsx), then commits them back to main.
+# an Excel copy (scores_2026.xlsx) and the full Yahoo responses
+# (snapshots/raw/2026/<date>.json.gz), then commits them back to main.
 # Free on GitHub Actions (a few minutes a week). No API keys: yfinance and
 # the FRED CSV are public.
 #
