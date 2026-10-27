@@ -47,8 +47,8 @@ async def log_request(request: Request) -> None:
     logger.debug(
         "endpoint_called",
         extra={
-            "method":      request.method,
-            "path":        request.url.path,
-            "query":       str(request.query_params) or None,
+            "method": request.method,
+            "path": request.url.path,
+            "query": str(request.query_params) or None,
         },
     )

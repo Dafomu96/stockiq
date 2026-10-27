@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas_ta as _ta  # noqa: F401
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from analysis.fundamentals import compute_fundamental_score
 from analysis.scoring import (
     FundamentalOnlyStrategy,
+    ScoringStrategy,
     WeightedAverageStrategy,
     run_scoring,
 )
@@ -52,12 +53,13 @@ router = APIRouter(prefix="/v1", tags=["analysis"])
 # Single-ticker analysis helper (reused for both tickers)
 # ---------------------------------------------------------------------------
 
+
 def _analyse_ticker(
     ticker: str,
     fetcher: MarketDataFetcher,
     period: str,
     rf: float,
-    strategy,
+    strategy: ScoringStrategy,
 ) -> ScoreSummary:
     """Run full analysis for one ticker and return a compact ScoreSummary.
 
@@ -166,14 +168,14 @@ def _build_verdict(a: ScoreSummary, b: ScoreSummary) -> WinnerVerdict:
         reason = _explain_winner(b, a)
 
     fund_winner = (
-        a.ticker if a.fundamental_score > b.fundamental_score
-        else b.ticker if b.fundamental_score > a.fundamental_score
-        else None
+        a.ticker
+        if a.fundamental_score > b.fundamental_score
+        else b.ticker if b.fundamental_score > a.fundamental_score else None
     )
     tech_winner = (
-        a.ticker if a.technical_score > b.technical_score
-        else b.ticker if b.technical_score > a.technical_score
-        else None
+        a.ticker
+        if a.technical_score > b.technical_score
+        else b.ticker if b.technical_score > a.technical_score else None
     )
 
     return WinnerVerdict(
@@ -207,10 +209,13 @@ def _explain_winner(winner: ScoreSummary, loser: ScoreSummary) -> str:
     if winner.golden_cross and not loser.golden_cross:
         reasons.append("Golden Cross active (long-term bullish trend)")
 
-    if winner.upside_pct is not None and (loser.upside_pct is None or winner.upside_pct > loser.upside_pct):
+    if winner.upside_pct is not None and (
+        loser.upside_pct is None or winner.upside_pct > loser.upside_pct
+    ):
         reasons.append(
             f"higher Gordon upside ({winner.upside_pct:.1f}% vs "
-            f"{loser.upside_pct:.1f}%)" if loser.upside_pct is not None
+            f"{loser.upside_pct:.1f}%)"
+            if loser.upside_pct is not None
             else f"positive Gordon upside ({winner.upside_pct:.1f}%)"
         )
 
@@ -229,6 +234,7 @@ def _explain_winner(winner: ScoreSummary, loser: ScoreSummary) -> str:
 # ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/compare",
@@ -278,12 +284,20 @@ async def compare(
         loop.run_in_executor(
             None,
             _analyse_ticker,
-            body.ticker_a, fetcher, body.period, rf, strategy,
+            body.ticker_a,
+            fetcher,
+            body.period,
+            rf,
+            strategy,
         ),
         loop.run_in_executor(
             None,
             _analyse_ticker,
-            body.ticker_b, fetcher, body.period, rf, strategy,
+            body.ticker_b,
+            fetcher,
+            body.period,
+            rf,
+            strategy,
         ),
     )
 
@@ -293,13 +307,13 @@ async def compare(
     logger.info(
         "compare_completed",
         extra={
-            "ticker_a":  body.ticker_a,
-            "score_a":   summary_a.composite_score,
-            "ticker_b":  body.ticker_b,
-            "score_b":   summary_b.composite_score,
-            "winner":    verdict.winner,
-            "margin":    verdict.margin,
-            "total_ms":  total_ms,
+            "ticker_a": body.ticker_a,
+            "score_a": summary_a.composite_score,
+            "ticker_b": body.ticker_b,
+            "score_b": summary_b.composite_score,
+            "winner": verdict.winner,
+            "margin": verdict.margin,
+            "total_ms": total_ms,
         },
     )
 
@@ -307,5 +321,5 @@ async def compare(
         ticker_a=summary_a,
         ticker_b=summary_b,
         verdict=verdict,
-        analysed_at=datetime.now(timezone.utc).isoformat(),
+        analysed_at=datetime.now(UTC).isoformat(),
     )

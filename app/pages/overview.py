@@ -6,7 +6,6 @@ import streamlit as st
 
 from app.components import (
     data_warnings,
-    explain_box,
     metric_card,
     score_gauge_row,
     section_header,
@@ -31,7 +30,11 @@ def render(result, info: dict | None, df_ind) -> None:
     # ── Header ────────────────────────────────────────────────────────────
     col_title, col_badge = st.columns([2, 1])
     with col_title:
-        name = (info or {}).get("longName") or (info or {}).get("shortName") or result.ticker
+        name = (
+            (info or {}).get("longName")
+            or (info or {}).get("shortName")
+            or result.ticker
+        )
         currency = (info or {}).get("currency", "")
         exchange = (info or {}).get("exchange", "")
         st.markdown(
@@ -90,18 +93,27 @@ def render(result, info: dict | None, df_ind) -> None:
         price_positive = change_pct >= 0
 
     gordon = result.fundamental.gordon
-    fair_value_str = f"{gordon.fair_value:,.2f}" if gordon and gordon.fair_value else "N/A"
-    upside_str = f"{gordon.upside_pct:+.1f}%" if gordon and gordon.upside_pct is not None else None
+    fair_value_str = (
+        f"{gordon.fair_value:,.2f}" if gordon and gordon.fair_value else "N/A"
+    )
+    upside_str = (
+        f"{gordon.upside_pct:+.1f}%"
+        if gordon and gordon.upside_pct is not None
+        else None
+    )
     upside_pos = (gordon.upside_pct or 0) > 0 if gordon else None
 
     capm = result.fundamental.capm
-    pe = result.fundamental.pe
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         metric_card(
             t("metric_price"),
-            f"{current_price:,.2f} {(info or {}).get('currency','')}" if current_price else "N/A",
+            (
+                f"{current_price:,.2f} {(info or {}).get('currency','')}"
+                if current_price
+                else "N/A"
+            ),
             delta=price_delta,
             delta_positive=price_positive,
         )
@@ -118,7 +130,11 @@ def render(result, info: dict | None, df_ind) -> None:
         beta_str = f"{beta_val:.2f}" if beta_val is not None else "N/A"
         beta_note = None
         if beta_val is not None:
-            beta_note = "More volatile than market" if beta_val > 1 else "Less volatile than market"
+            beta_note = (
+                "More volatile than market"
+                if beta_val > 1
+                else "Less volatile than market"
+            )
         metric_card(t("metric_beta"), beta_str, delta=beta_note)
     with col4:
         ret = capm.required_return if capm else None
@@ -134,6 +150,7 @@ def render(result, info: dict | None, df_ind) -> None:
     # ── Quick price chart ─────────────────────────────────────────────────
     if df_ind is not None:
         from app.charts import build_price_chart
+
         section_header(t("chart_price_title"))
         fig = build_price_chart(df_ind, result.technical, title="")
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})

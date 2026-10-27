@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app.components import explain_box, section_header
-from app.i18n import t
 from analysis.swensen import (
-    CANONICAL_ALLOCATION,
     ASSET_CLASS_LABELS,
+    CANONICAL_ALLOCATION,
     AssetClass,
     analyse_portfolio,
     compute_target_amounts,
 )
+from app.components import explain_box, section_header
+from app.i18n import t
 
 
 def render() -> None:
@@ -54,7 +54,8 @@ def render() -> None:
         with cols[idx % 3]:
             pct = st.slider(
                 label,
-                min_value=0, max_value=100,
+                min_value=0,
+                max_value=100,
                 value=default_pct,
                 step=1,
                 key=f"alloc_{cls.value}",
@@ -76,18 +77,21 @@ def render() -> None:
 
     # ── Summary metrics ───────────────────────────────────────────────────
     m1, m2, m3, m4 = st.columns(4)
-    score_color = (
-        "#10b981" if portfolio_result.swensen_score >= 75
-        else "#f59e0b" if portfolio_result.swensen_score >= 50
-        else "#ef4444"
-    )
     with m1:
-        st.metric(t("portfolio_swensen_score"), f"{portfolio_result.swensen_score:.0f}/100")
+        st.metric(
+            t("portfolio_swensen_score"), f"{portfolio_result.swensen_score:.0f}/100"
+        )
     with m2:
-        rebal_label = t("portfolio_rebalance_needed") if portfolio_result.needs_rebalancing else t("portfolio_balanced")
+        rebal_label = (
+            t("portfolio_rebalance_needed")
+            if portfolio_result.needs_rebalancing
+            else t("portfolio_balanced")
+        )
         st.metric("Status", rebal_label)
     with m3:
-        st.metric(t("portfolio_annual_cost"), f"{portfolio_result.annual_cost_estimate:,.2f}")
+        st.metric(
+            t("portfolio_annual_cost"), f"{portfolio_result.annual_cost_estimate:,.2f}"
+        )
     with m4:
         st.metric(
             "Actions needed",
@@ -109,10 +113,16 @@ def render() -> None:
     col_donut, col_drift = st.columns([1, 1])
     with col_donut:
         fig_alloc = build_allocation_chart(current_named, target_named, "Allocation")
-        st.plotly_chart(fig_alloc, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(
+            fig_alloc, use_container_width=True, config={"displayModeBar": False}
+        )
     with col_drift:
-        fig_drift = build_drift_chart(portfolio_result.positions, "Drift from target (pp)")
-        st.plotly_chart(fig_drift, use_container_width=True, config={"displayModeBar": False})
+        fig_drift = build_drift_chart(
+            portfolio_result.positions, "Drift from target (pp)"
+        )
+        st.plotly_chart(
+            fig_drift, use_container_width=True, config={"displayModeBar": False}
+        )
 
     # ── Rebalancing actions table ─────────────────────────────────────────
     if portfolio_result.rebalancing_actions:
@@ -160,6 +170,7 @@ def render() -> None:
     section_header("Target amounts", "How much to allocate to each ETF")
     amounts = compute_target_amounts(total_value)
     from analysis.swensen import ETF_RECOMMENDATIONS
+
     for cls, amount in amounts.items():
         etf = ETF_RECOMMENDATIONS[cls]
         label = ASSET_CLASS_LABELS[cls][lang]

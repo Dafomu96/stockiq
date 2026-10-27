@@ -35,8 +35,8 @@ from __future__ import annotations
 
 import logging
 import logging.config
-import uuid
 from contextvars import ContextVar
+from typing import Any
 
 import structlog
 
@@ -64,8 +64,8 @@ def bind_request_id(request_id: str) -> None:
 def _add_request_id(
     logger: object,
     method: str,
-    event_dict: dict,
-) -> dict:
+    event_dict: dict[str, Any],
+) -> dict[str, Any]:
     """structlog processor: inject request_id from ContextVar."""
     event_dict["request_id"] = _request_id_var.get()
     return event_dict
@@ -101,7 +101,8 @@ def configure_logging(log_level: str = "INFO") -> None:
     ]
 
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             # Bridge: pass stdlib log records through structlog pipeline
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],

@@ -22,8 +22,8 @@ See: ADR-001 — Why yfinance over Polygon.io for the MVP.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, cast
 
 import pandas as pd
 import requests
@@ -105,15 +105,16 @@ class MarketDataFetcher:
 
         cached = self._cache.get(cache_key)
         if cached is not None:
-            logger.info(
-                "ohlcv_cache_hit ticker=%s period=%s", ticker, period
-            )
+            logger.info("ohlcv_cache_hit ticker=%s period=%s", ticker, period)
             import io
+
             return pd.read_json(io.StringIO(cached), orient="split")
 
         logger.info(
             "ohlcv_fetch ticker=%s period=%s interval=%s source=yfinance",
-            ticker, period, interval,
+            ticker,
+            period,
+            interval,
         )
 
         try:
@@ -133,10 +134,13 @@ class MarketDataFetcher:
 
         df = self._clean_ohlcv(raw, ticker)
 
-        self._cache.set(cache_key, df.to_json(orient="split"), settings.cache_ttl_prices)
+        self._cache.set(
+            cache_key, df.to_json(orient="split"), settings.cache_ttl_prices
+        )
         logger.info(
             "ohlcv_fetched ticker=%s rows=%d first=%s last=%s",
-            ticker, len(df),
+            ticker,
+            len(df),
             df.index[0].date() if not df.empty else "N/A",
             df.index[-1].date() if not df.empty else "N/A",
         )
@@ -168,7 +172,7 @@ class MarketDataFetcher:
         cached = self._cache.get(cache_key)
         if cached is not None:
             logger.info("info_cache_hit ticker=%s", ticker)
-            return cached  # type: ignore[return-value]
+            return cast(dict[str, Any], cached)
 
         logger.info("info_fetch ticker=%s source=yfinance", ticker)
         try:
@@ -223,7 +227,7 @@ class MarketDataFetcher:
         settings.risk_free_rate_fallback rather than crashing — the
         CAPM result will still be meaningful with a reasonable fallback.
         """
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         url = _FRED_URL + today
         try:
             resp = requests.get(url, timeout=10)
@@ -243,9 +247,9 @@ class MarketDataFetcher:
 
         except (requests.RequestException, ValueError, DataFetchError) as exc:
             logger.warning(
-                "risk_free_rate_fetch_failed error=%s "
-                "fallback=%.4f",
-                exc, settings.risk_free_rate_fallback,
+                "risk_free_rate_fetch_failed error=%s " "fallback=%.4f",
+                exc,
+                settings.risk_free_rate_fallback,
             )
             return settings.risk_free_rate_fallback
 
@@ -283,9 +287,7 @@ class MarketDataFetcher:
             if col in df.columns:
                 df[col] = df[col].astype("float64")
 
-        logger.debug(
-            "ohlcv_cleaned ticker=%s rows_after_clean=%d", ticker, len(df)
-        )
+        logger.debug("ohlcv_cleaned ticker=%s rows_after_clean=%d", ticker, len(df))
         return df
 
     @staticmethod
@@ -302,12 +304,23 @@ class MarketDataFetcher:
             Dict with a stable set of keys; missing values are None.
         """
         fields = [
-            "trailingPE", "forwardPE", "beta",
-            "dividendRate", "dividendYield",
-            "marketCap", "sector", "industry",
-            "shortName", "longName", "currency", "exchange",
-            "fiftyTwoWeekHigh", "fiftyTwoWeekLow",
-            "earningsGrowth", "revenueGrowth",
-            "regularMarketPrice", "regularMarketPreviousClose",
+            "trailingPE",
+            "forwardPE",
+            "beta",
+            "dividendRate",
+            "dividendYield",
+            "marketCap",
+            "sector",
+            "industry",
+            "shortName",
+            "longName",
+            "currency",
+            "exchange",
+            "fiftyTwoWeekHigh",
+            "fiftyTwoWeekLow",
+            "earningsGrowth",
+            "revenueGrowth",
+            "regularMarketPrice",
+            "regularMarketPreviousClose",
         ]
         return {field: raw.get(field) for field in fields}

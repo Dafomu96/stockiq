@@ -41,14 +41,14 @@ async def portfolio(
     """
     logger.info(
         "portfolio_start total_value=%.0f horizon=%dy",
-        body.total_value, body.horizon_years,
+        body.total_value,
+        body.horizon_years,
     )
 
     # Convert string keys → AssetClass enum
     try:
         current_alloc = {
-            AssetClass(key): weight
-            for key, weight in body.current_allocation.items()
+            AssetClass(key): weight for key, weight in body.current_allocation.items()
         }
     except ValueError as exc:
         raise HTTPException(
@@ -71,7 +71,8 @@ async def portfolio(
 
     logger.info(
         "portfolio_complete score=%.1f needs_rebalancing=%s actions=%d",
-        result.swensen_score, result.needs_rebalancing,
+        result.swensen_score,
+        result.needs_rebalancing,
         len(result.rebalancing_actions),
     )
 

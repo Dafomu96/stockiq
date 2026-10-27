@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 # Signal enum — single source of truth for all indicator verdicts
 # ---------------------------------------------------------------------------
 
+
 class Signal(str, Enum):
     """Directional verdict for a single indicator or the composite score.
 
@@ -60,6 +61,7 @@ class Signal(str, Enum):
 # ---------------------------------------------------------------------------
 # Per-indicator result dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class RSIResult:
@@ -221,6 +223,7 @@ class ADXResult:
 # Composite score output
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class TechnicalScore:
     """Composite technical score and all individual indicator results.
@@ -258,14 +261,14 @@ class TechnicalScore:
 # Indicator constants (derived from settings to keep them in one place)
 # ---------------------------------------------------------------------------
 
-_RSI_OVERBOUGHT = settings.rsi_overbought   # 70.0 — Murphy p.225
-_RSI_OVERSOLD = settings.rsi_oversold       # 30.0 — Murphy p.225
-_RSI_PERIOD = settings.rsi_period           # 14
-_SMA_SHORT = settings.sma_short             # 20
-_SMA_MEDIUM = settings.sma_medium           # 50
-_SMA_LONG = settings.sma_long               # 200
-_BB_WINDOW = settings.bb_window             # 20
-_BB_STD = settings.bb_std                   # 2.0
+_RSI_OVERBOUGHT = settings.rsi_overbought  # 70.0 — Murphy p.225
+_RSI_OVERSOLD = settings.rsi_oversold  # 30.0 — Murphy p.225
+_RSI_PERIOD = settings.rsi_period  # 14
+_SMA_SHORT = settings.sma_short  # 20
+_SMA_MEDIUM = settings.sma_medium  # 50
+_SMA_LONG = settings.sma_long  # 200
+_BB_WINDOW = settings.bb_window  # 20
+_BB_STD = settings.bb_std  # 2.0
 
 _SCORE_BUY_THRESHOLD = 60.0
 _SCORE_SELL_THRESHOLD = 40.0
@@ -284,6 +287,7 @@ _WEIGHTS: dict[str, float] = {
 # ---------------------------------------------------------------------------
 # Main public function
 # ---------------------------------------------------------------------------
+
 
 def compute_technical_score(df: pd.DataFrame) -> TechnicalScore:
     """Compute all technical indicators and return a composite score.
@@ -334,9 +338,7 @@ def compute_technical_score(df: pd.DataFrame) -> TechnicalScore:
 
     components, notes = _aggregate_components(rsi, macd, bb, ma, obv, adx)
 
-    raw_score = sum(
-        components.get(k, 50.0) * w for k, w in _WEIGHTS.items()
-    )
+    raw_score = sum(components.get(k, 50.0) * w for k, w in _WEIGHTS.items())
     final_score = round(min(max(raw_score, 0.0), 100.0), 1)
 
     if final_score >= _SCORE_BUY_THRESHOLD:
@@ -348,7 +350,9 @@ def compute_technical_score(df: pd.DataFrame) -> TechnicalScore:
 
     logger.info(
         "technical_score rows=%d score=%.1f signal=%s",
-        len(df), final_score, signal,
+        len(df),
+        final_score,
+        signal,
     )
 
     return TechnicalScore(
@@ -369,6 +373,7 @@ def compute_technical_score(df: pd.DataFrame) -> TechnicalScore:
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
+
 
 def _validate_dataframe(df: pd.DataFrame) -> None:
     """Raise descriptive errors for common bad inputs."""
@@ -392,6 +397,7 @@ def _validate_dataframe(df: pd.DataFrame) -> None:
 # ---------------------------------------------------------------------------
 # Indicator computation
 # ---------------------------------------------------------------------------
+
 
 def _compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """Append all indicator columns to df and return it.
@@ -427,6 +433,7 @@ def _compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
 # Signal derivation helpers
 # ---------------------------------------------------------------------------
 
+
 def _safe_float(val: object) -> float | None:
     """Convert pandas scalar to float, returning None for NaN/None."""
     if val is None:
@@ -449,15 +456,16 @@ def _derive_rsi_signal(last: pd.Series, warnings: list[str]) -> RSIResult:
             f"need at least {_RSI_PERIOD + 1} bars."
         )
         return RSIResult(
-            value=None, signal=Signal.NEUTRAL,
+            value=None,
+            signal=Signal.NEUTRAL,
             overbought_threshold=_RSI_OVERBOUGHT,
             oversold_threshold=_RSI_OVERSOLD,
         )
 
     if value < _RSI_OVERSOLD:
-        signal = Signal.BUY     # oversold — potential reversal up
+        signal = Signal.BUY  # oversold — potential reversal up
     elif value > _RSI_OVERBOUGHT:
-        signal = Signal.SELL    # overbought — potential reversal down
+        signal = Signal.SELL  # overbought — potential reversal down
     else:
         signal = Signal.NEUTRAL
 
@@ -495,19 +503,26 @@ def _derive_macd_signal(
             "MACD could not be computed — need at least 35 bars (26 slow + 9 signal)."
         )
         return MACDResult(
-            macd=None, signal_line=None, histogram=None,
+            macd=None,
+            signal_line=None,
+            histogram=None,
             signal=Signal.NEUTRAL,
-            is_bullish_crossover=False, is_bearish_crossover=False,
+            is_bullish_crossover=False,
+            is_bearish_crossover=False,
         )
 
     # Crossover detection: histogram changes sign
     bullish = (
-        hist_now is not None and hist_prev is not None
-        and hist_now > 0 and hist_prev <= 0
+        hist_now is not None
+        and hist_prev is not None
+        and hist_now > 0
+        and hist_prev <= 0
     )
     bearish = (
-        hist_now is not None and hist_prev is not None
-        and hist_now < 0 and hist_prev >= 0
+        hist_now is not None
+        and hist_prev is not None
+        and hist_now < 0
+        and hist_prev >= 0
     )
 
     # Trend bias even without fresh crossover
@@ -547,8 +562,12 @@ def _derive_bollinger_signal(last: pd.Series, warnings: list[str]) -> BollingerR
             f"— need at least {_BB_WINDOW} bars."
         )
         return BollingerResult(
-            upper=None, middle=None, lower=None,
-            bandwidth=None, percent_b=None, signal=Signal.NEUTRAL,
+            upper=None,
+            middle=None,
+            lower=None,
+            bandwidth=None,
+            percent_b=None,
+            signal=Signal.NEUTRAL,
         )
 
     if pct_b is not None and pct_b < 0.2:
@@ -591,15 +610,9 @@ def _derive_ma_signal(
             "long-term trend filter. Using SMA50 as fallback."
         )
 
-    golden_cross = (
-        sma50 is not None and sma200 is not None and sma50 > sma200
-    )
-    death_cross = (
-        sma50 is not None and sma200 is not None and sma50 < sma200
-    )
-    above_200 = (
-        price is not None and sma200 is not None and price > sma200
-    )
+    golden_cross = sma50 is not None and sma200 is not None and sma50 > sma200
+    death_cross = sma50 is not None and sma200 is not None and sma50 < sma200
+    above_200 = price is not None and sma200 is not None and price > sma200
 
     # Signal logic: trend + position relative to long-term MA
     if golden_cross and above_200:
@@ -643,8 +656,11 @@ def _derive_obv_signal(
     if len(obv_series) < 5:
         warnings.append("OBV could not be computed — insufficient volume data.")
         return OBVResult(
-            current_obv=None, obv_sma=None, volume_trend="unknown",
-            confirms_price_trend=False, signal=Signal.NEUTRAL,
+            current_obv=None,
+            obv_sma=None,
+            volume_trend="unknown",
+            confirms_price_trend=False,
+            signal=Signal.NEUTRAL,
         )
 
     current_obv = _safe_float(obv_series.iloc[-1])
@@ -664,12 +680,12 @@ def _derive_obv_signal(
     price_series = df["Close"].dropna().tail(5)
     price_slope = (
         float(price_series.iloc[-1] - price_series.iloc[0])
-        if len(price_series) >= 2 else 0.0
+        if len(price_series) >= 2
+        else 0.0
     )
 
-    confirms = (
-        (obv_slope > 0 and price_slope > 0)
-        or (obv_slope < 0 and price_slope < 0)
+    confirms = (obv_slope > 0 and price_slope > 0) or (
+        obv_slope < 0 and price_slope < 0
     )
 
     if volume_trend == "rising" and price_slope > 0:
@@ -702,8 +718,11 @@ def _derive_adx_signal(last: pd.Series, warnings: list[str]) -> ADXResult:
     if adx is None:
         warnings.append("ADX could not be computed — need at least 14 bars.")
         return ADXResult(
-            adx=None, plus_di=None, minus_di=None,
-            trend_strength="unknown", signal=Signal.NEUTRAL,
+            adx=None,
+            plus_di=None,
+            minus_di=None,
+            trend_strength="unknown",
+            signal=Signal.NEUTRAL,
         )
 
     if adx >= 25:
@@ -730,6 +749,7 @@ def _derive_adx_signal(last: pd.Series, warnings: list[str]) -> ADXResult:
 # ---------------------------------------------------------------------------
 # Score aggregation
 # ---------------------------------------------------------------------------
+
 
 def _signal_to_score(signal: Signal) -> float:
     """Convert a Signal enum to a numeric sub-score."""
@@ -765,9 +785,13 @@ def _aggregate_components(
     # RSI note
     if rsi.value is not None:
         zone = (
-            "oversold — potential reversal upward" if rsi.signal == Signal.BUY
-            else "overbought — potential reversal downward" if rsi.signal == Signal.SELL
-            else "neutral zone"
+            "oversold — potential reversal upward"
+            if rsi.signal == Signal.BUY
+            else (
+                "overbought — potential reversal downward"
+                if rsi.signal == Signal.SELL
+                else "neutral zone"
+            )
         )
         notes.append(
             f"RSI({_RSI_PERIOD}): {rsi.value:.1f} — {zone}. "
@@ -791,9 +815,13 @@ def _aggregate_components(
     # Bollinger note
     if bb.percent_b is not None:
         position = (
-            "near lower band — potential buy zone" if bb.signal == Signal.BUY
-            else "near upper band — potential sell zone" if bb.signal == Signal.SELL
-            else "inside bands — no extreme signal"
+            "near lower band — potential buy zone"
+            if bb.signal == Signal.BUY
+            else (
+                "near upper band — potential sell zone"
+                if bb.signal == Signal.SELL
+                else "inside bands — no extreme signal"
+            )
         )
         notes.append(
             f"Bollinger Bands: %B={bb.percent_b:.2f} ({position}). "

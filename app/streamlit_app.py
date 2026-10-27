@@ -33,10 +33,10 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
-from app.components import disclaimer_footer
-from app.i18n import current_lang, set_language, t
+from app.components import disclaimer_footer  # noqa: E402
+from app.i18n import set_language, t  # noqa: E402
 
 # ── Page config (must be first Streamlit call) ───────────────────────────────
 
@@ -142,12 +142,12 @@ with st.sidebar:
 
     # Navigation
     pages = [
-        ("overview",    "🏠", "nav_overview"),
-        ("technical",   "📊", "nav_technical"),
+        ("overview", "🏠", "nav_overview"),
+        ("technical", "📊", "nav_technical"),
         ("fundamental", "🏦", "nav_fundamental"),
-        ("portfolio",   "🥧", "nav_portfolio"),
-        ("simulator",   "🧮", "nav_simulator"),
-        ("glossary",    "📖", "nav_glossary"),
+        ("portfolio", "🥧", "nav_portfolio"),
+        ("simulator", "🧮", "nav_simulator"),
+        ("glossary", "📖", "nav_glossary"),
     ]
 
     for page_id, icon, label_key in pages:
@@ -170,18 +170,27 @@ with st.sidebar:
                 st.rerun()
 
     # Ticker input + analyse button
-    st.markdown("<div style='height:20px;border-top:1px solid #1f2937;margin-top:12px'></div>", unsafe_allow_html=True)
-    ticker_input = st.text_input(
-        t("ticker_input_label"),
-        value=st.session_state["ticker"],
-        placeholder=t("ticker_input_placeholder"),
-        help=t("ticker_input_help"),
-        key="ticker_input_widget",
-    ).strip().upper()
+    st.markdown(
+        "<div style='height:20px;border-top:1px solid #1f2937;margin-top:12px'></div>",
+        unsafe_allow_html=True,
+    )
+    ticker_input = (
+        st.text_input(
+            t("ticker_input_label"),
+            value=st.session_state["ticker"],
+            placeholder=t("ticker_input_placeholder"),
+            help=t("ticker_input_help"),
+            key="ticker_input_widget",
+        )
+        .strip()
+        .upper()
+    )
 
     analyse_clicked = st.button(
-        t("analyze_btn"), key="analyze_btn",
-        use_container_width=True, type="primary",
+        t("analyze_btn"),
+        key="analyze_btn",
+        use_container_width=True,
+        type="primary",
     )
 
 # ── Analysis pipeline ─────────────────────────────────────────────────────────
@@ -194,10 +203,10 @@ if analyse_clicked and ticker_input:
 
     with st.spinner(t("analyzing_spinner")):
         try:
-            from data.fetcher import MarketDataFetcher
             from analysis.fundamentals import compute_fundamental_score
-            from analysis.technical import compute_technical_score
             from analysis.scoring import run_scoring
+            from analysis.technical import compute_technical_score
+            from data.fetcher import MarketDataFetcher
 
             fetcher = MarketDataFetcher()
             df = fetcher.get_ohlcv(ticker_input, period="1y")
@@ -206,6 +215,7 @@ if analyse_clicked and ticker_input:
 
             # Compute indicators onto the DataFrame for charting
             import pandas_ta as _ta  # noqa: F401
+
             df_ind = df.copy()
             df_ind.ta.rsi(length=14, append=True)
             df_ind.ta.macd(fast=12, slow=26, signal=9, append=True)
@@ -217,7 +227,9 @@ if analyse_clicked and ticker_input:
             df_ind.ta.obv(append=True)
             df_ind.ta.adx(length=14, append=True)
 
-            current_price = info.get("regularMarketPrice") or float(df["Close"].iloc[-1])
+            current_price = info.get("regularMarketPrice") or float(
+                df["Close"].iloc[-1]
+            )
             fundamental = compute_fundamental_score(
                 current_price=current_price,
                 beta=info.get("beta"),
@@ -236,7 +248,8 @@ if analyse_clicked and ticker_input:
             st.session_state["ohlcv_df"] = df_ind
 
         except Exception as exc:
-            from config.exceptions import InvalidTickerError, InsufficientDataError
+            from config.exceptions import InsufficientDataError, InvalidTickerError
+
             if isinstance(exc, InvalidTickerError):
                 st.error(t("error_invalid_ticker"))
             elif isinstance(exc, InsufficientDataError):
@@ -253,26 +266,32 @@ df_ind = st.session_state.get("ohlcv_df")
 
 if page == "overview":
     from app.pages import overview
+
     overview.render(result, info, df_ind)
 
 elif page == "technical":
     from app.pages import technical
+
     technical.render(result, df_ind)
 
 elif page == "fundamental":
     from app.pages import fundamental
+
     fundamental.render(result, info)
 
 elif page == "portfolio":
     from app.pages import portfolio
+
     portfolio.render()
 
 elif page == "simulator":
     from app.pages import simulator
+
     simulator.render(result)
 
 elif page == "glossary":
     from app.pages import glossary
+
     glossary.render()
 
 # ── Footer ────────────────────────────────────────────────────────────────────

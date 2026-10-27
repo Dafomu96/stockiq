@@ -17,6 +17,7 @@ class StockIQError(Exception):
 # Data layer
 # ---------------------------------------------------------------------------
 
+
 class DataFetchError(StockIQError):
     """Raised when all data sources fail for a given ticker.
 
@@ -45,6 +46,7 @@ class RateLimitError(StockIQError):
 # ---------------------------------------------------------------------------
 # Analysis layer
 # ---------------------------------------------------------------------------
+
 
 class InsufficientDataError(StockIQError):
     """Raised when there are not enough data points to compute an indicator.

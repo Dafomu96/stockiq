@@ -63,7 +63,11 @@ def render(result, info: dict | None) -> None:
                 metric_card(
                     t("metric_fair_value"),
                     f"{gordon.fair_value:,.2f}",
-                    delta=f"{gordon.upside_pct:+.1f}% upside" if gordon.upside_pct else None,
+                    delta=(
+                        f"{gordon.upside_pct:+.1f}% upside"
+                        if gordon.upside_pct
+                        else None
+                    ),
                     delta_positive=(gordon.upside_pct or 0) > 0,
                 )
             with g_col2:
@@ -133,7 +137,11 @@ def render(result, info: dict | None) -> None:
         # ── Score breakdown ────────────────────────────────────────────────
         section_header("Score breakdown")
         for comp_name, comp_score in fund.components.items():
-            bar_color = "#10b981" if comp_score >= 60 else "#ef4444" if comp_score < 40 else "#f59e0b"
+            bar_color = (
+                "#10b981"
+                if comp_score >= 60
+                else "#ef4444" if comp_score < 40 else "#f59e0b"
+            )
             st.markdown(
                 f"""
                 <div style='margin-bottom:10px;'>

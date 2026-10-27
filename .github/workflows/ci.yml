@@ -54,7 +54,10 @@ jobs:
             black==24.4.0 \
             mypy==1.10.0 \
             pydantic==2.7.0 \
-            pydantic-settings==2.3.0
+            pydantic-settings==2.3.0 \
+            "fastapi~=0.111.0" \
+            "slowapi~=0.1.9" \
+            types-requests
 
       - name: Ruff — lint
         run: ruff check .

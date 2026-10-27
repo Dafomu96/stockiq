@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 # Asset class definitions
 # ---------------------------------------------------------------------------
 
+
 class AssetClass(str, Enum):
     """The six core asset classes in the Swensen model.
 
@@ -68,6 +69,7 @@ class AssetClass(str, Enum):
 # ---------------------------------------------------------------------------
 # ETF recommendations
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class ETFRecommendation:
@@ -181,12 +183,12 @@ ETF_RECOMMENDATIONS: dict[AssetClass, ETFRecommendation] = {
 # Source: Swensen (2005) Appendix — "Model Portfolios for Individual Investors"
 # Note: Swensen acknowledged these are starting points, not rigid rules.
 CANONICAL_ALLOCATION: dict[AssetClass, float] = {
-    AssetClass.DOMESTIC_EQUITY: 0.30,       # 30%
+    AssetClass.DOMESTIC_EQUITY: 0.30,  # 30%
     AssetClass.INTERNATIONAL_EQUITY: 0.15,  # 15%
-    AssetClass.EMERGING_MARKETS: 0.05,      # 5%
-    AssetClass.REAL_ESTATE: 0.20,           # 20%
-    AssetClass.GOVERNMENT_BONDS: 0.15,      # 15%
-    AssetClass.INFLATION_PROTECTED: 0.15,   # 15%
+    AssetClass.EMERGING_MARKETS: 0.05,  # 5%
+    AssetClass.REAL_ESTATE: 0.20,  # 20%
+    AssetClass.GOVERNMENT_BONDS: 0.15,  # 15%
+    AssetClass.INFLATION_PROTECTED: 0.15,  # 15%
 }
 
 # Human-readable labels for UI display (bilingual)
@@ -221,6 +223,7 @@ ASSET_CLASS_LABELS: dict[AssetClass, dict[str, str]] = {
 # ---------------------------------------------------------------------------
 # Portfolio position and rebalancing dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class PortfolioPosition:
@@ -332,14 +335,16 @@ class SwensenPortfolioResult:
     projection: GrowthProjection
     annual_cost_estimate: float
     notes: list[str]
-    disclaimer: str = field(default=(
-        "This portfolio analysis is for educational purposes only. "
-        "Swensen's model is a starting point, not a guarantee. "
-        "Returns shown are gross historical averages — they do not account "
-        "for taxes, inflation, transaction costs, or your personal "
-        "financial situation. Consult a qualified financial advisor "
-        "before making investment decisions."
-    ))
+    disclaimer: str = field(
+        default=(
+            "This portfolio analysis is for educational purposes only. "
+            "Swensen's model is a starting point, not a guarantee. "
+            "Returns shown are gross historical averages — they do not account "
+            "for taxes, inflation, transaction costs, or your personal "
+            "financial situation. Consult a qualified financial advisor "
+            "before making investment decisions."
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -348,9 +353,9 @@ class SwensenPortfolioResult:
 # ---------------------------------------------------------------------------
 
 _PROJECTION_RATES = {
-    "pessimistic": 0.04,   # 4% — below-average decade (e.g. 2000–2010)
-    "base": 0.072,         # 7.2% — Swensen's long-run estimate for his model
-    "optimistic": 0.10,    # 10% — historical S&P 500 long-run average
+    "pessimistic": 0.04,  # 4% — below-average decade (e.g. 2000–2010)
+    "base": 0.072,  # 7.2% — Swensen's long-run estimate for his model
+    "optimistic": 0.10,  # 10% — historical S&P 500 long-run average
 }
 
 # Weighted average TER of the canonical ETF portfolio
@@ -363,6 +368,7 @@ _CANONICAL_TER = sum(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def analyse_portfolio(
     current_allocation: dict[AssetClass, float],
@@ -430,8 +436,10 @@ def analyse_portfolio(
     logger.info(
         "swensen_analysis total_value=%.0f score=%.1f "
         "needs_rebalancing=%s actions=%d",
-        total_value, swensen_score,
-        needs_rebalancing, len(rebalancing_actions),
+        total_value,
+        swensen_score,
+        needs_rebalancing,
+        len(rebalancing_actions),
     )
 
     return SwensenPortfolioResult(
@@ -473,6 +481,7 @@ def compute_target_amounts(
 # Private helpers
 # ---------------------------------------------------------------------------
 
+
 def _normalise_allocation(
     allocation: dict[AssetClass, float],
 ) -> dict[AssetClass, float]:
@@ -493,9 +502,7 @@ def _normalise_allocation(
         return full  # all zeros — return as-is, caller handles edge case
 
     if abs(total - 1.0) > 0.01:
-        logger.warning(
-            "allocation weights sum to %.3f — normalising to 1.0", total
-        )
+        logger.warning("allocation weights sum to %.3f — normalising to 1.0", total)
         return {cls: w / total for cls, w in full.items()}
 
     return full
@@ -523,17 +530,19 @@ def _compute_positions(
         else:
             action = "hold"
 
-        positions.append(PortfolioPosition(
-            asset_class=cls,
-            current_weight=round(current_w, 6),
-            target_weight=round(target_w, 6),
-            current_value=current_value,
-            drift=drift,
-            drift_pct=drift_pct,
-            needs_rebalancing=needs_rebalancing,
-            action=action,
-            etf=ETF_RECOMMENDATIONS[cls],
-        ))
+        positions.append(
+            PortfolioPosition(
+                asset_class=cls,
+                current_weight=round(current_w, 6),
+                target_weight=round(target_w, 6),
+                current_value=current_value,
+                drift=drift,
+                drift_pct=drift_pct,
+                needs_rebalancing=needs_rebalancing,
+                action=action,
+                etf=ETF_RECOMMENDATIONS[cls],
+            )
+        )
 
     return positions
 
@@ -567,15 +576,17 @@ def _compute_rebalancing_actions(
             f"approx. {amount:,.0f} to restore balance. "
             f"Swensen (2005) p.195: rebalance when drift exceeds 5pp."
         )
-        actions.append(RebalancingAction(
-            asset_class=pos.asset_class,
-            action=pos.action,
-            amount=amount,
-            current_weight=pos.current_weight,
-            target_weight=pos.target_weight,
-            etf_ticker=pos.etf.ticker,
-            rationale=rationale,
-        ))
+        actions.append(
+            RebalancingAction(
+                asset_class=pos.asset_class,
+                action=pos.action,
+                amount=amount,
+                current_weight=pos.current_weight,
+                target_weight=pos.target_weight,
+                etf_ticker=pos.etf.ticker,
+                rationale=rationale,
+            )
+        )
 
     return actions
 
@@ -616,18 +627,18 @@ def _compute_projection(
     year_by_year: list[dict[str, float]] = []
 
     for year in range(1, horizon_years + 1):
-        year_by_year.append({
-            "year": float(year),
-            "pessimistic": round(
-                initial_value * (1 + rates["pessimistic"]) ** year, 2
-            ),
-            "base": round(
-                initial_value * (1 + rates["base"]) ** year, 2
-            ),
-            "optimistic": round(
-                initial_value * (1 + rates["optimistic"]) ** year, 2
-            ),
-        })
+        year_by_year.append(
+            {
+                "year": float(year),
+                "pessimistic": round(
+                    initial_value * (1 + rates["pessimistic"]) ** year, 2
+                ),
+                "base": round(initial_value * (1 + rates["base"]) ** year, 2),
+                "optimistic": round(
+                    initial_value * (1 + rates["optimistic"]) ** year, 2
+                ),
+            }
+        )
 
     final = year_by_year[-1]
     return GrowthProjection(

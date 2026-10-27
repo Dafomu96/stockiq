@@ -10,7 +10,6 @@ All cache operations are typed and log on miss/hit for observability.
 
 import json
 import logging
-import os
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path

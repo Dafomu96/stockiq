@@ -33,7 +33,6 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -44,6 +43,7 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures" / "sample_responses"
 # ---------------------------------------------------------------------------
 # JSON sample response fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def sample_dir() -> Path:
@@ -88,6 +88,7 @@ def simulate_json() -> dict:
 # DataFrame fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="session")
 def mock_ohlcv_df() -> pd.DataFrame:
     """Synthetic 252-bar OHLCV DataFrame representing one trading year.
@@ -106,10 +107,10 @@ def mock_ohlcv_df() -> pd.DataFrame:
     closes = [150.0 + i * 0.2 for i in range(rows)]
     return pd.DataFrame(
         {
-            "Open":   [c - 0.5 for c in closes],
-            "High":   [c + 1.0 for c in closes],
-            "Low":    [c - 1.0 for c in closes],
-            "Close":  closes,
+            "Open": [c - 0.5 for c in closes],
+            "High": [c + 1.0 for c in closes],
+            "Low": [c - 1.0 for c in closes],
+            "Close": closes,
             "Volume": [50_000_000] * rows,
         },
         index=idx,
@@ -119,6 +120,7 @@ def mock_ohlcv_df() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # yfinance info fixture
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def mock_fundamental_info() -> dict:
@@ -161,6 +163,7 @@ def mock_risk_free_rate() -> float:
 # ---------------------------------------------------------------------------
 # Mock fetcher fixture
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def mock_fetcher(mock_ohlcv_df, mock_fundamental_info, mock_risk_free_rate):

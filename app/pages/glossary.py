@@ -234,14 +234,14 @@ def render() -> None:
     lang = st.session_state.get("lang", "en")
     section_header(t("glossary_title"), t("glossary_subtitle"))
 
-    search = st.text_input(
-        "", placeholder=t("glossary_search"), key="glossary_search"
-    ).lower().strip()
+    search = (
+        st.text_input("", placeholder=t("glossary_search"), key="glossary_search")
+        .lower()
+        .strip()
+    )
 
     categories = ["All", "Fundamental", "Technical", "Portfolio", "Risk"]
-    cat_filter = st.radio(
-        "Category", categories, horizontal=True, key="glossary_cat"
-    )
+    cat_filter = st.radio("Category", categories, horizontal=True, key="glossary_cat")
 
     # ── Filter terms ──────────────────────────────────────────────────────
     filtered = _TERMS
@@ -249,7 +249,8 @@ def render() -> None:
         filtered = [term for term in filtered if term["category"] == cat_filter]
     if search:
         filtered = [
-            term for term in filtered
+            term
+            for term in filtered
             if search in term[f"term_{lang}"].lower()
             or search in term[f"body_{lang}"].lower()
         ]

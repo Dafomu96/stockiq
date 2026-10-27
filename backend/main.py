@@ -19,10 +19,11 @@ import logging
 import sys
 import time
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -48,7 +49,7 @@ limiter = Limiter(
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(log_level="INFO")
     logger.info(
         "stockiq_api_starting",
@@ -78,9 +79,9 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_tags=[
-            {"name": "health",     "description": "API health check"},
-            {"name": "analysis",   "description": "Stock analysis (Shiller + Murphy)"},
-            {"name": "portfolio",  "description": "Portfolio analysis (Swensen)"},
+            {"name": "health", "description": "API health check"},
+            {"name": "analysis", "description": "Stock analysis (Shiller + Murphy)"},
+            {"name": "portfolio", "description": "Portfolio analysis (Swensen)"},
             {"name": "simulation", "description": "P&L simulation"},
         ],
     )
@@ -98,7 +99,9 @@ def create_app() -> FastAPI:
 
     # ── Correlation ID + timing middleware ─────────────────────────────────────
     @app.middleware("http")
-    async def request_middleware(request: Request, call_next):
+    async def request_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Inject a correlation ID and log every request with timing.
 
         The request_id is:
@@ -121,9 +124,9 @@ def create_app() -> FastAPI:
         logger.info(
             "request_started",
             extra={
-                "method":  request.method,
-                "path":    request.url.path,
-                "client":  request.client.host if request.client else "unknown",
+                "method": request.method,
+                "path": request.url.path,
+                "client": request.client.host if request.client else "unknown",
             },
         )
 
@@ -131,14 +134,14 @@ def create_app() -> FastAPI:
 
         duration_ms = round((time.monotonic() - start) * 1000, 1)
         response.headers["X-Process-Time"] = f"{duration_ms}ms"
-        response.headers["X-Request-ID"]   = request_id
+        response.headers["X-Request-ID"] = request_id
 
         logger.info(
             "request_completed",
             extra={
-                "method":      request.method,
-                "path":        request.url.path,
-                "status":      response.status_code,
+                "method": request.method,
+                "path": request.url.path,
+                "status": response.status_code,
                 "duration_ms": duration_ms,
             },
         )
@@ -148,7 +151,9 @@ def create_app() -> FastAPI:
     # ── Global exception handlers ──────────────────────────────────────────────
 
     @app.exception_handler(InvalidTickerError)
-    async def invalid_ticker_handler(request: Request, exc: InvalidTickerError):
+    async def invalid_ticker_handler(
+        request: Request, exc: InvalidTickerError
+    ) -> JSONResponse:
         logger.warning(
             "invalid_ticker",
             extra={"ticker": exc.ticker, "path": request.url.path},
@@ -156,14 +161,14 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={
-                "error":  "ticker_not_found",
+                "error": "ticker_not_found",
                 "ticker": exc.ticker,
                 "detail": str(exc),
             },
         )
 
     @app.exception_handler(DataFetchError)
-    async def data_fetch_handler(request: Request, exc: DataFetchError):
+    async def data_fetch_handler(request: Request, exc: DataFetchError) -> JSONResponse:
         logger.error(
             "data_fetch_failed",
             extra={"ticker": exc.ticker, "reason": exc.reason},
@@ -171,14 +176,16 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
-                "error":  "data_source_unavailable",
+                "error": "data_source_unavailable",
                 "ticker": exc.ticker,
                 "detail": exc.reason,
             },
         )
 
     @app.exception_handler(ModelAssumptionError)
-    async def model_assumption_handler(request: Request, exc: ModelAssumptionError):
+    async def model_assumption_handler(
+        request: Request, exc: ModelAssumptionError
+    ) -> JSONResponse:
         logger.warning(
             "model_assumption_violated",
             extra={"model": exc.model, "violation": exc.violation},
@@ -186,27 +193,27 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
-                "error":     "model_assumption_violated",
-                "model":     exc.model,
-                "detail":    exc.violation,
+                "error": "model_assumption_violated",
+                "model": exc.model,
+                "detail": exc.violation,
             },
         )
 
     @app.exception_handler(Exception)
-    async def generic_handler(request: Request, exc: Exception):
+    async def generic_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.error(
             "unhandled_exception",
             extra={
-                "path":     request.url.path,
+                "path": request.url.path,
                 "exc_type": type(exc).__name__,
-                "error":    str(exc),
+                "error": str(exc),
             },
             exc_info=True,
         )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
-                "error":  "internal_server_error",
+                "error": "internal_server_error",
                 "detail": "An unexpected error occurred. Please try again.",
             },
         )
@@ -218,8 +225,12 @@ def create_app() -> FastAPI:
     app.include_router(compare.router)
 
     # ── Health ─────────────────────────────────────────────────────────────────
-    @app.get("/health", response_model=HealthResponse, tags=["health"],
-             summary="API health check")
+    @app.get(
+        "/health",
+        response_model=HealthResponse,
+        tags=["health"],
+        summary="API health check",
+    )
     async def health() -> HealthResponse:
         return HealthResponse(
             status="ok",

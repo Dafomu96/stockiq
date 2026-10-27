@@ -16,7 +16,7 @@ Test organisation:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -25,10 +25,10 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.main import create_app
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def app():
@@ -87,6 +87,7 @@ def _make_info() -> dict:
 
 # ── Mock patch helper ────────────────────────────────────────────────────────
 
+
 def _patch_fetcher(mock_df=None, mock_info=None, mock_rf=0.045):
     """Return a context manager that patches all fetcher methods."""
     df = mock_df if mock_df is not None else _make_ohlcv_df()
@@ -102,6 +103,7 @@ def _patch_fetcher(mock_df=None, mock_info=None, mock_rf=0.045):
 # ---------------------------------------------------------------------------
 # TestHealth
 # ---------------------------------------------------------------------------
+
 
 class TestHealth:
     @pytest.mark.asyncio
@@ -135,11 +137,13 @@ class TestHealth:
 # TestAnalyzeEndpoint
 # ---------------------------------------------------------------------------
 
+
 class TestAnalyzeEndpoint:
     @pytest.mark.asyncio
     async def test_valid_request_returns_200(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post("/v1/analyze", json={"ticker": "AAPL"})
@@ -151,6 +155,7 @@ class TestAnalyzeEndpoint:
     async def test_response_has_required_fields(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post("/v1/analyze", json={"ticker": "AAPL"})
@@ -169,6 +174,7 @@ class TestAnalyzeEndpoint:
     async def test_ticker_uppercased_in_response(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post("/v1/analyze", json={"ticker": "aapl"})
@@ -180,6 +186,7 @@ class TestAnalyzeEndpoint:
     async def test_composite_score_in_valid_range(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post("/v1/analyze", json={"ticker": "AAPL"})
@@ -192,6 +199,7 @@ class TestAnalyzeEndpoint:
     async def test_signal_is_valid_value(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post("/v1/analyze", json={"ticker": "AAPL"})
@@ -203,6 +211,7 @@ class TestAnalyzeEndpoint:
     async def test_fundamental_only_strategy_accepted(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post(
@@ -248,6 +257,7 @@ class TestAnalyzeEndpoint:
     async def test_response_has_x_process_time_header(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post("/v1/analyze", json={"ticker": "AAPL"})
@@ -259,6 +269,7 @@ class TestAnalyzeEndpoint:
     async def test_disclaimer_present_and_non_empty(self, client, app):
         mock_fetcher = _patch_fetcher()
         from backend.dependencies import get_fetcher
+
         app.dependency_overrides[get_fetcher] = lambda: mock_fetcher
 
         resp = await client.post("/v1/analyze", json={"ticker": "AAPL"})
@@ -272,6 +283,7 @@ class TestAnalyzeEndpoint:
 # ---------------------------------------------------------------------------
 # TestPortfolioEndpoint
 # ---------------------------------------------------------------------------
+
 
 class TestPortfolioEndpoint:
     _valid_payload = {
@@ -314,8 +326,8 @@ class TestPortfolioEndpoint:
             "domestic_equity": 0.50,  # +20pp overweight
             "international_equity": 0.15,
             "emerging_markets": 0.05,
-            "real_estate": 0.10,      # -10pp underweight
-            "government_bonds": 0.10, # -5pp underweight
+            "real_estate": 0.10,  # -10pp underweight
+            "government_bonds": 0.10,  # -5pp underweight
             "inflation_protected": 0.10,
         }
         resp = await client.post("/v1/portfolio", json=drifted)
@@ -347,6 +359,7 @@ class TestPortfolioEndpoint:
 # ---------------------------------------------------------------------------
 # TestSimulateEndpoint
 # ---------------------------------------------------------------------------
+
 
 class TestSimulateEndpoint:
     _valid_payload = {
@@ -424,6 +437,7 @@ class TestSimulateEndpoint:
 # ---------------------------------------------------------------------------
 # TestSchemaValidation
 # ---------------------------------------------------------------------------
+
 
 class TestSchemaValidation:
     @pytest.mark.asyncio

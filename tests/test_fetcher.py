@@ -12,7 +12,6 @@ Run with:
     pytest tests/test_fetcher.py -v --cov=data.fetcher
 """
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -22,10 +21,10 @@ from config.exceptions import DataFetchError, InvalidTickerError
 from data.cache import JsonFileCache
 from data.fetcher import MarketDataFetcher
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def tmp_cache(tmp_path):
@@ -51,10 +50,10 @@ def _make_ohlcv_df(rows: int = 252) -> pd.DataFrame:
     idx = pd.date_range("2023-01-02", periods=rows, freq="B", tz="UTC")
     return pd.DataFrame(
         {
-            "Open":   [150.0 + i * 0.1 for i in range(rows)],
-            "High":   [152.0 + i * 0.1 for i in range(rows)],
-            "Low":    [149.0 + i * 0.1 for i in range(rows)],
-            "Close":  [151.0 + i * 0.1 for i in range(rows)],
+            "Open": [150.0 + i * 0.1 for i in range(rows)],
+            "High": [152.0 + i * 0.1 for i in range(rows)],
+            "Low": [149.0 + i * 0.1 for i in range(rows)],
+            "Close": [151.0 + i * 0.1 for i in range(rows)],
             "Volume": [50_000_000] * rows,
         },
         index=idx,
@@ -89,6 +88,7 @@ def _make_info_dict() -> dict:
 # get_ohlcv — happy path
 # ---------------------------------------------------------------------------
 
+
 class TestGetOhlcv:
     def test_returns_clean_dataframe_on_success(self, fetcher):
         mock_df = _make_ohlcv_df()
@@ -118,7 +118,7 @@ class TestGetOhlcv:
         mock_df = _make_ohlcv_df()
         with patch("data.fetcher.yf.download", return_value=mock_df) as mock_dl:
             fetcher.get_ohlcv("AAPL")
-            fetcher.get_ohlcv("AAPL")   # second call — should use cache
+            fetcher.get_ohlcv("AAPL")  # second call — should use cache
 
         # yfinance should only be called once
         assert mock_dl.call_count == 1
@@ -180,6 +180,7 @@ class TestGetOhlcv:
 # get_fundamental_info
 # ---------------------------------------------------------------------------
 
+
 class TestGetFundamentalInfo:
     def test_returns_expected_keys(self, fetcher):
         mock_ticker = MagicMock()
@@ -229,6 +230,7 @@ class TestGetFundamentalInfo:
 # get_risk_free_rate
 # ---------------------------------------------------------------------------
 
+
 class TestGetRiskFreeRate:
     def test_returns_decimal_not_percentage(self, fetcher):
         """FRED returns '4.50' (percent); we must return 0.045."""
@@ -246,10 +248,14 @@ class TestGetRiskFreeRate:
     def test_falls_back_to_settings_when_fred_unreachable(self, fetcher):
         """Network failure → fallback rate, no crash."""
         import requests as req_lib
-        with patch("data.fetcher.requests.get", side_effect=req_lib.RequestException("timeout")):
+
+        with patch(
+            "data.fetcher.requests.get", side_effect=req_lib.RequestException("timeout")
+        ):
             rate = fetcher.get_risk_free_rate()
 
         from config.settings import settings
+
         assert rate == settings.risk_free_rate_fallback
 
     def test_result_is_cached(self, fetcher):

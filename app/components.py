@@ -20,7 +20,6 @@ import streamlit as st
 
 from app.i18n import t
 
-
 # ---------------------------------------------------------------------------
 # Colour palette (mirrors the dark dashboard aesthetic)
 # ---------------------------------------------------------------------------
@@ -34,8 +33,10 @@ _MUTED = "#6b7280"
 
 def _signal_color(signal: str) -> str:
     return {
-        "buy": _GREEN, "comprar": _GREEN,
-        "sell": _RED, "vender": _RED,
+        "buy": _GREEN,
+        "comprar": _GREEN,
+        "sell": _RED,
+        "vender": _RED,
         "neutral": _AMBER,
     }.get(signal.lower(), _MUTED)
 
@@ -43,6 +44,7 @@ def _signal_color(signal: str) -> str:
 # ---------------------------------------------------------------------------
 # Signal badge
 # ---------------------------------------------------------------------------
+
 
 def signal_badge(signal: str, score: float) -> None:
     """Render the composite signal badge with score.
@@ -85,6 +87,7 @@ def signal_badge(signal: str, score: float) -> None:
 # Score gauge row
 # ---------------------------------------------------------------------------
 
+
 def score_gauge_row(
     composite: float,
     fundamental: float,
@@ -97,6 +100,7 @@ def score_gauge_row(
         fundamental: Fundamental (Shiller) score 0–100.
         technical: Technical (Murphy) score 0–100.
     """
+
     def _bar(label: str, value: float, color: str) -> str:
         pct = max(0, min(100, value))
         return f"""
@@ -120,9 +124,13 @@ def score_gauge_row(
     st.markdown(
         _bar(t("fundamental_score"), fundamental, _BLUE)
         + _bar(t("technical_score"), technical, "#8b5cf6")
-        + _bar(t("composite_score"), composite, _signal_color(
-            "buy" if composite >= 60 else "sell" if composite < 40 else "neutral"
-        )),
+        + _bar(
+            t("composite_score"),
+            composite,
+            _signal_color(
+                "buy" if composite >= 60 else "sell" if composite < 40 else "neutral"
+            ),
+        ),
         unsafe_allow_html=True,
     )
 
@@ -130,6 +138,7 @@ def score_gauge_row(
 # ---------------------------------------------------------------------------
 # Metric cards
 # ---------------------------------------------------------------------------
+
 
 def metric_card(
     label: str,
@@ -191,6 +200,7 @@ def metric_card(
 # Technical signal row
 # ---------------------------------------------------------------------------
 
+
 def signal_row(label: str, signal: str, value_str: str, note: str = "") -> None:
     """Render a single indicator row in the technical signals table.
 
@@ -243,6 +253,7 @@ def signal_row(label: str, signal: str, value_str: str, note: str = "") -> None:
 # Education / explanation box
 # ---------------------------------------------------------------------------
 
+
 def explain_box(title: str, content: str, source: str = "") -> None:
     """Render the 'What does this mean?' educational panel.
 
@@ -281,6 +292,7 @@ def explain_box(title: str, content: str, source: str = "") -> None:
 # Data quality warning banner
 # ---------------------------------------------------------------------------
 
+
 def data_warnings(warnings: list[str]) -> None:
     """Render data quality warnings as a collapsible amber banner.
 
@@ -290,9 +302,7 @@ def data_warnings(warnings: list[str]) -> None:
     if not warnings:
         return
 
-    items = "".join(
-        f"<div style='margin-bottom:4px;'>⚠ {w}</div>" for w in warnings
-    )
+    items = "".join(f"<div style='margin-bottom:4px;'>⚠ {w}</div>" for w in warnings)
 
     with st.expander(f"⚠ {t('section_warnings')} ({len(warnings)})", expanded=False):
         st.markdown(
@@ -308,6 +318,7 @@ def data_warnings(warnings: list[str]) -> None:
 # ---------------------------------------------------------------------------
 # Disclaimer footer
 # ---------------------------------------------------------------------------
+
 
 def disclaimer_footer() -> None:
     """Render the always-visible disclaimer and EOD data warning."""
@@ -330,6 +341,7 @@ def disclaimer_footer() -> None:
 # ---------------------------------------------------------------------------
 # Section header
 # ---------------------------------------------------------------------------
+
 
 def section_header(title: str, subtitle: str = "") -> None:
     """Render a styled section header with optional subtitle."""

@@ -42,8 +42,10 @@ async def simulate_endpoint(
     """
     logger.info(
         "simulate_start ticker=%s investment=%.0f horizon=%dy monthly=%.0f",
-        body.ticker, body.initial_investment,
-        body.horizon_years, body.monthly_contribution,
+        body.ticker,
+        body.initial_investment,
+        body.horizon_years,
+        body.monthly_contribution,
     )
 
     try:

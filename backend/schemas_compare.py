@@ -4,7 +4,7 @@ Additional Pydantic schemas for POST /v1/compare.
 These extend the existing schemas.py — add them to the bottom of that file.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
 class CompareRequest(BaseModel):
@@ -18,12 +18,16 @@ class CompareRequest(BaseModel):
     """
 
     ticker_a: str = Field(
-        ..., min_length=1, max_length=20,
+        ...,
+        min_length=1,
+        max_length=20,
         description="First ticker (e.g. 'AAPL')",
         examples=["AAPL"],
     )
     ticker_b: str = Field(
-        ..., min_length=1, max_length=20,
+        ...,
+        min_length=1,
+        max_length=20,
         description="Second ticker (e.g. 'MSFT')",
         examples=["MSFT"],
     )
@@ -37,7 +41,7 @@ class CompareRequest(BaseModel):
 
     @field_validator("ticker_b")
     @classmethod
-    def tickers_must_differ(cls, v: str, info) -> str:
+    def tickers_must_differ(cls, v: str, info: ValidationInfo) -> str:
         a = info.data.get("ticker_a", "")
         if v == a.strip().upper():
             raise ValueError("ticker_a and ticker_b must be different symbols")

@@ -21,20 +21,36 @@ from analysis.scoring import CompositeResult
 from analysis.swensen import SwensenPortfolioResult
 from analysis.technical import TechnicalScore
 from backend.schemas import (
-    ADXOut, AnalyzeResponse, BollingerOut, BreakEvenOut,
-    CAPMOut, DCAOut, FundamentalOut, GordonOut,
-    GrowthProjectionOut, MACDOut, MovingAverageOut,
-    OBVOut, PERatioOut, PortfolioResponse, PositionOut,
-    RebalancingActionOut, RiskMetricsOut, RSIOut, ScenarioOut,
-    SimulateResponse, SimulateYearOut, TechnicalOut,
+    ADXOut,
+    AnalyzeResponse,
+    BollingerOut,
+    BreakEvenOut,
+    CAPMOut,
+    DCAOut,
+    FundamentalOut,
+    GordonOut,
+    GrowthProjectionOut,
+    MACDOut,
+    MovingAverageOut,
+    OBVOut,
+    PERatioOut,
+    PortfolioResponse,
+    PositionOut,
+    RebalancingActionOut,
+    RiskMetricsOut,
+    RSIOut,
+    ScenarioOut,
+    SimulateResponse,
+    SimulateYearOut,
+    TechnicalOut,
     YearProjectionOut,
 )
 from simulation.simulator import SimulationResult
 
-
 # ---------------------------------------------------------------------------
 # Analyse
 # ---------------------------------------------------------------------------
+
 
 def to_analyze_response(result: CompositeResult) -> AnalyzeResponse:
     """Convert a CompositeResult to the /v1/analyze response schema."""
@@ -71,15 +87,19 @@ def _to_fundamental_out(f: FundamentalScore) -> FundamentalOut:
             beta=capm.beta,
             market_risk_premium=capm.market_risk_premium,
         ),
-        gordon=GordonOut(
-            fair_value=gordon.fair_value,
-            current_price=gordon.current_price,
-            dividend=gordon.dividend,
-            discount_rate=gordon.discount_rate,
-            growth_rate=gordon.growth_rate,
-            upside_pct=gordon.upside_pct,
-            assumption_warning=gordon.assumption_warning,
-        ) if gordon is not None else None,
+        gordon=(
+            GordonOut(
+                fair_value=gordon.fair_value,
+                current_price=gordon.current_price,
+                dividend=gordon.dividend,
+                discount_rate=gordon.discount_rate,
+                growth_rate=gordon.growth_rate,
+                upside_pct=gordon.upside_pct,
+                assumption_warning=gordon.assumption_warning,
+            )
+            if gordon is not None
+            else None
+        ),
         pe=PERatioOut(
             actual_pe=pe.actual_pe,
             theoretical_pe=pe.theoretical_pe,
@@ -159,6 +179,7 @@ def _to_technical_out(t: TechnicalScore) -> TechnicalOut:
 # Portfolio
 # ---------------------------------------------------------------------------
 
+
 def to_portfolio_response(result: SwensenPortfolioResult) -> PortfolioResponse:
     """Convert a SwensenPortfolioResult to the /v1/portfolio response schema."""
     proj = result.projection
@@ -225,6 +246,7 @@ def to_portfolio_response(result: SwensenPortfolioResult) -> PortfolioResponse:
 # Simulate
 # ---------------------------------------------------------------------------
 
+
 def to_simulate_response(result: SimulationResult) -> SimulateResponse:
     """Convert a SimulationResult to the /v1/simulate response schema."""
     risk = result.risk
@@ -245,13 +267,17 @@ def to_simulate_response(result: SimulationResult) -> SimulateResponse:
             )
             for s in result.scenarios
         ],
-        dca=DCAOut(
-            monthly_contribution=result.dca.monthly_contribution,
-            total_contributed=result.dca.total_contributed,
-            final_value_base=result.dca.final_value_base,
-            gain_from_dca=result.dca.gain_from_dca,
-            effective_cagr=result.dca.effective_cagr,
-        ) if result.dca else None,
+        dca=(
+            DCAOut(
+                monthly_contribution=result.dca.monthly_contribution,
+                total_contributed=result.dca.total_contributed,
+                final_value_base=result.dca.final_value_base,
+                gain_from_dca=result.dca.gain_from_dca,
+                effective_cagr=result.dca.effective_cagr,
+            )
+            if result.dca
+            else None
+        ),
         risk=RiskMetricsOut(
             annual_volatility=risk.annual_volatility,
             value_at_risk_95=risk.value_at_risk_95,

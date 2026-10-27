@@ -27,6 +27,7 @@ def render(result, df_ind) -> None:
     # ── Price + indicators chart ──────────────────────────────────────────
     if df_ind is not None:
         from app.charts import build_price_chart
+
         fig = build_price_chart(df_ind, tech, title=t("chart_price_title"))
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
@@ -41,9 +42,9 @@ def render(result, df_ind) -> None:
         rsi = tech.rsi
         rsi_val = f"{rsi.value:.1f}" if rsi.value is not None else "N/A"
         rsi_zone = (
-            "Oversold" if rsi.signal.value == "buy"
-            else "Overbought" if rsi.signal.value == "sell"
-            else "Neutral zone"
+            "Oversold"
+            if rsi.signal.value == "buy"
+            else "Overbought" if rsi.signal.value == "sell" else "Neutral zone"
         )
         signal_row(
             t("rsi_label"),
@@ -54,9 +55,14 @@ def render(result, df_ind) -> None:
         macd = tech.macd
         macd_str = "N/A"
         if macd.histogram is not None:
-            cross = "Bullish crossover" if macd.is_bullish_crossover else (
-                "Bearish crossover" if macd.is_bearish_crossover else
-                ("Above zero" if macd.histogram > 0 else "Below zero")
+            cross = (
+                "Bullish crossover"
+                if macd.is_bullish_crossover
+                else (
+                    "Bearish crossover"
+                    if macd.is_bearish_crossover
+                    else ("Above zero" if macd.histogram > 0 else "Below zero")
+                )
             )
             macd_str = cross
         signal_row(t("macd_label"), macd.signal.value, macd_str)
@@ -65,16 +71,18 @@ def render(result, df_ind) -> None:
         bb_str = "N/A"
         if bb.percent_b is not None:
             zone = (
-                "Near lower band" if bb.signal.value == "buy"
-                else "Near upper band" if bb.signal.value == "sell"
-                else "Inside bands"
+                "Near lower band"
+                if bb.signal.value == "buy"
+                else "Near upper band" if bb.signal.value == "sell" else "Inside bands"
             )
             bb_str = f"%B={bb.percent_b:.2f} — {zone}"
         signal_row(t("bb_label"), bb.signal.value, bb_str)
 
         ma = tech.moving_averages
-        ma_str = "Golden Cross" if ma.golden_cross else (
-            "Death Cross" if ma.death_cross else "No crossover"
+        ma_str = (
+            "Golden Cross"
+            if ma.golden_cross
+            else ("Death Cross" if ma.death_cross else "No crossover")
         )
         if ma.sma_50 and ma.sma_200:
             ma_str += f" (SMA50={ma.sma_50:.2f} / SMA200={ma.sma_200:.2f})"

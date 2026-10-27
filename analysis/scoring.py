@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from analysis.fundamentals import FundamentalScore
 from analysis.technical import TechnicalScore
@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Output dataclass
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class CompositeResult:
@@ -87,17 +88,20 @@ class CompositeResult:
     confidence_reasons: list[str]
     summary_notes: list[str]
     analysed_at: str
-    disclaimer: str = field(default=(
-        "This analysis is for educational purposes only and does not constitute "
-        "financial advice. All models are theoretical and based on historical data. "
-        "Past performance does not guarantee future results. "
-        "Data is End-of-Day (EOD) — not suitable for intraday trading decisions."
-    ))
+    disclaimer: str = field(
+        default=(
+            "This analysis is for educational purposes only and does not constitute "
+            "financial advice. All models are theoretical and based on historical data. "
+            "Past performance does not guarantee future results. "
+            "Data is End-of-Day (EOD) — not suitable for intraday trading decisions."
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Abstract strategy
 # ---------------------------------------------------------------------------
+
 
 class ScoringStrategy(ABC):
     """Abstract base class for composite scoring strategies.
@@ -140,6 +144,7 @@ class ScoringStrategy(ABC):
 # Default strategy: weighted average
 # ---------------------------------------------------------------------------
 
+
 class WeightedAverageStrategy(ScoringStrategy):
     """Default strategy: weighted average of fundamental and technical scores.
 
@@ -169,8 +174,16 @@ class WeightedAverageStrategy(ScoringStrategy):
         weight_fundamental: float | None = None,
         weight_technical: float | None = None,
     ) -> None:
-        w_f = weight_fundamental if weight_fundamental is not None else settings.weight_fundamental
-        w_t = weight_technical if weight_technical is not None else settings.weight_technical
+        w_f = (
+            weight_fundamental
+            if weight_fundamental is not None
+            else settings.weight_fundamental
+        )
+        w_t = (
+            weight_technical
+            if weight_technical is not None
+            else settings.weight_technical
+        )
 
         if not (0 < w_f <= 1 and 0 < w_t <= 1):
             raise ValueError(
@@ -214,9 +227,7 @@ class WeightedAverageStrategy(ScoringStrategy):
         else:
             signal = "neutral"
 
-        confidence, confidence_reasons = self._assess_confidence(
-            fundamental, technical
-        )
+        confidence, confidence_reasons = self._assess_confidence(fundamental, technical)
 
         summary_notes = _merge_notes(fundamental, technical)
 
@@ -224,8 +235,11 @@ class WeightedAverageStrategy(ScoringStrategy):
             "composite_score ticker=%s fundamental=%.1f technical=%.1f "
             "composite=%.1f signal=%s confidence=%s",
             ticker,
-            fundamental.score, technical.score,
-            composite, signal, confidence,
+            fundamental.score,
+            technical.score,
+            composite,
+            signal,
+            confidence,
         )
 
         return CompositeResult(
@@ -244,7 +258,7 @@ class WeightedAverageStrategy(ScoringStrategy):
             confidence=confidence,
             confidence_reasons=confidence_reasons,
             summary_notes=summary_notes,
-            analysed_at=datetime.now(timezone.utc).isoformat(),
+            analysed_at=datetime.now(UTC).isoformat(),
         )
 
     @staticmethod
@@ -294,6 +308,7 @@ class WeightedAverageStrategy(ScoringStrategy):
 # Fundamental-only strategy (for assets without reliable technical data)
 # ---------------------------------------------------------------------------
 
+
 class FundamentalOnlyStrategy(ScoringStrategy):
     """Scoring strategy that uses only fundamental analysis.
 
@@ -325,9 +340,9 @@ class FundamentalOnlyStrategy(ScoringStrategy):
         composite = round(fundamental.score, 1)
 
         signal = (
-            "buy" if composite >= self._BUY_THRESHOLD
-            else "sell" if composite < self._SELL_THRESHOLD
-            else "neutral"
+            "buy"
+            if composite >= self._BUY_THRESHOLD
+            else "sell" if composite < self._SELL_THRESHOLD else "neutral"
         )
 
         reasons = ["Technical analysis excluded — fundamental-only mode."]
@@ -336,7 +351,9 @@ class FundamentalOnlyStrategy(ScoringStrategy):
         logger.info(
             "composite_score strategy=fundamental_only ticker=%s "
             "score=%.1f signal=%s",
-            ticker, composite, signal,
+            ticker,
+            composite,
+            signal,
         )
 
         return CompositeResult(
@@ -355,13 +372,14 @@ class FundamentalOnlyStrategy(ScoringStrategy):
             confidence=confidence,
             confidence_reasons=reasons,
             summary_notes=_merge_notes(fundamental, technical),
-            analysed_at=datetime.now(timezone.utc).isoformat(),
+            analysed_at=datetime.now(UTC).isoformat(),
         )
 
 
 # ---------------------------------------------------------------------------
 # Engine — the single public entry point
 # ---------------------------------------------------------------------------
+
 
 def run_scoring(
     ticker: str,
@@ -412,6 +430,7 @@ def run_scoring(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _merge_notes(
     fundamental: FundamentalScore,

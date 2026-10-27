@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 # Result dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class CAPMResult:
     """Output of the Capital Asset Pricing Model.
@@ -163,13 +164,14 @@ class FundamentalScore:
 # Score thresholds
 # ---------------------------------------------------------------------------
 
-_SIGNAL_BUY_THRESHOLD = 60.0     # score >= 60 → buy signal
-_SIGNAL_AVOID_THRESHOLD = 40.0   # score < 40  → avoid signal
+_SIGNAL_BUY_THRESHOLD = 60.0  # score >= 60 → buy signal
+_SIGNAL_AVOID_THRESHOLD = 40.0  # score < 40  → avoid signal
 
 
 # ---------------------------------------------------------------------------
 # Core model functions
 # ---------------------------------------------------------------------------
+
 
 def compute_capm(
     beta: float,
@@ -214,7 +216,10 @@ def compute_capm(
 
     logger.debug(
         "capm beta=%.3f rf=%.4f rm=%.4f required=%.4f",
-        beta, risk_free_rate, r_m, required_return,
+        beta,
+        risk_free_rate,
+        r_m,
+        required_return,
     )
 
     return CAPMResult(
@@ -297,7 +302,11 @@ def compute_gordon(
             f"{settings.gordon_growth_max:.1%}. Using {effective_growth:.1%}. "
             "The Gordon model is unreliable for very high growth stocks."
         )
-        logger.warning("gordon growth_rate_capped original=%.4f capped=%.4f", growth_rate, effective_growth)
+        logger.warning(
+            "gordon growth_rate_capped original=%.4f capped=%.4f",
+            growth_rate,
+            effective_growth,
+        )
 
     # --- Core assumption: g must be strictly less than r ---
     if effective_growth >= discount_rate:
@@ -316,7 +325,12 @@ def compute_gordon(
 
     logger.debug(
         "gordon D=%.4f r=%.4f g=%.4f fair_value=%.2f price=%.2f upside=%.1f%%",
-        dividend, discount_rate, effective_growth, fair_value, current_price, upside_pct,
+        dividend,
+        discount_rate,
+        effective_growth,
+        fair_value,
+        current_price,
+        upside_pct,
     )
 
     return GordonResult(
@@ -381,8 +395,7 @@ def compute_pdv(
         )
 
     pdv = sum(
-        annual_dividend / (1 + discount_rate) ** t
-        for t in range(1, horizon_years + 1)
+        annual_dividend / (1 + discount_rate) ** t for t in range(1, horizon_years + 1)
     )
 
     terminal_value: float | None = None
@@ -405,8 +418,11 @@ def compute_pdv(
 
     logger.debug(
         "pdv D=%.4f r=%.4f N=%d pdv=%.4f tv=%s",
-        annual_dividend, discount_rate, horizon_years,
-        pdv, f"{terminal_value:.4f}" if terminal_value else "None",
+        annual_dividend,
+        discount_rate,
+        horizon_years,
+        pdv,
+        f"{terminal_value:.4f}" if terminal_value else "None",
     )
 
     return PDVResult(
@@ -489,6 +505,7 @@ def compute_pe_ratio(
 # Composite fundamental score
 # ---------------------------------------------------------------------------
 
+
 def compute_fundamental_score(
     current_price: float,
     beta: float | None,
@@ -570,7 +587,7 @@ def compute_fundamental_score(
     if has_dividend:
         try:
             gordon_result = compute_gordon(
-                dividend=dividend_rate,  # type: ignore[arg-type]
+                dividend=dividend_rate,
                 discount_rate=capm_result.required_return,
                 growth_rate=effective_growth,
                 current_price=current_price,
@@ -641,11 +658,7 @@ def compute_fundamental_score(
     # --- Weighted aggregate ---
     if has_dividend and "gordon" in components:
         # Full model: CAPM 30% + Gordon 40% + P/E 30%
-        raw_score = (
-            capm_score * 0.30
-            + components["gordon"] * 0.40
-            + pe_score * 0.30
-        )
+        raw_score = capm_score * 0.30 + components["gordon"] * 0.40 + pe_score * 0.30
     else:
         # No dividend: CAPM 30% + P/E 70%
         raw_score = capm_score * 0.30 + pe_score * 0.70
@@ -662,7 +675,9 @@ def compute_fundamental_score(
 
     logger.info(
         "fundamental_score ticker_price=%.2f score=%.1f signal=%s",
-        current_price, final_score, signal,
+        current_price,
+        final_score,
+        signal,
     )
 
     return FundamentalScore(

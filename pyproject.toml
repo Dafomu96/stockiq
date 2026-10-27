@@ -24,6 +24,10 @@ select = [
 ]
 ignore = ["E501"]  # line length handled by black
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection uses Depends() in argument defaults by design
+extend-immutable-calls = ["fastapi.Depends"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

@@ -16,16 +16,24 @@ def render(result) -> None:
     col1, col2, col3 = st.columns(3)
     with col1:
         ticker = st.text_input("Ticker", value=result.ticker if result else "AAPL")
-        investment = st.number_input(t("sim_investment"), min_value=100.0, value=10_000.0, step=500.0)
+        investment = st.number_input(
+            t("sim_investment"), min_value=100.0, value=10_000.0, step=500.0
+        )
     with col2:
         horizon = st.slider(t("sim_horizon"), min_value=1, max_value=30, value=10)
         monthly = st.number_input(t("sim_monthly"), min_value=0.0, value=0.0, step=50.0)
     with col3:
-        volatility = st.number_input(
-            "Annual volatility (%)", min_value=1.0, max_value=100.0,
-            value=18.0, step=1.0,
-            help="Historical annualised volatility. Use 15–20% for large-cap equities."
-        ) / 100
+        volatility = (
+            st.number_input(
+                "Annual volatility (%)",
+                min_value=1.0,
+                max_value=100.0,
+                value=18.0,
+                step=1.0,
+                help="Historical annualised volatility. Use 15–20% for large-cap equities.",
+            )
+            / 100
+        )
 
     run_btn = st.button(t("sim_run_btn"), type="primary")
 
@@ -105,6 +113,7 @@ def render(result) -> None:
 
     # ── Projection chart ──────────────────────────────────────────────────
     from app.charts import build_simulation_chart
+
     fig = build_simulation_chart(sim, show_dca=monthly > 0, title=t("sim_title"))
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
@@ -116,16 +125,31 @@ def render(result) -> None:
         risk = sim.risk
         r1, r2 = st.columns(2)
         with r1:
-            metric_card(t("sim_sharpe"), f"{risk.sharpe_ratio:.2f}",
-                        help_text="(base_rate − rf) / volatility. >1 = good risk/return.")
-            metric_card(t("sim_max_dd"), f"{risk.max_drawdown_estimate:.1%}",
-                        help_text="Estimated peak-to-trough decline (heuristic).")
+            metric_card(
+                t("sim_sharpe"),
+                f"{risk.sharpe_ratio:.2f}",
+                help_text="(base_rate − rf) / volatility. >1 = good risk/return.",
+            )
+            metric_card(
+                t("sim_max_dd"),
+                f"{risk.max_drawdown_estimate:.1%}",
+                help_text="Estimated peak-to-trough decline (heuristic).",
+            )
         with r2:
-            metric_card(t("sim_var"), f"{risk.value_at_risk_95:.1%}",
-                        help_text="Parametric VaR 95% — max expected 1-year loss.")
-            metric_card("Break-even after loss",
-                        f"{risk.break_even_years:.1f} yrs" if risk.break_even_years > 0 else "< 1 yr",
-                        help_text="Years to recover from a VaR-95 loss at the base rate.")
+            metric_card(
+                t("sim_var"),
+                f"{risk.value_at_risk_95:.1%}",
+                help_text="Parametric VaR 95% — max expected 1-year loss.",
+            )
+            metric_card(
+                "Break-even after loss",
+                (
+                    f"{risk.break_even_years:.1f} yrs"
+                    if risk.break_even_years > 0
+                    else "< 1 yr"
+                ),
+                help_text="Years to recover from a VaR-95 loss at the base rate.",
+            )
 
         explain_box(
             "VaR and Sharpe ratio",
@@ -172,8 +196,10 @@ def render(result) -> None:
                 "Graham (1949) The Intelligent Investor; Shiller (2000)",
             )
         else:
-            st.info("No Gordon fair value available (no dividend). "
-                    "Margin of safety analysis requires dividend data.")
+            st.info(
+                "No Gordon fair value available (no dividend). "
+                "Margin of safety analysis requires dividend data."
+            )
 
     # ── Assumptions transparency ──────────────────────────────────────────
     with st.expander(f"🔍 {t('section_assumptions')}", expanded=False):

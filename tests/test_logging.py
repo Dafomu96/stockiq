@@ -12,8 +12,6 @@ Verifies:
 from __future__ import annotations
 
 import asyncio
-import json
-import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,10 +20,10 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.logging_config import bind_request_id, get_request_id
 
-
 # ---------------------------------------------------------------------------
 # Unit tests — logging_config module
 # ---------------------------------------------------------------------------
+
 
 class TestRequestIdContextVar:
     def test_default_value_is_dash(self):
@@ -65,30 +63,47 @@ class TestRequestIdContextVar:
 # Integration tests — middleware (via httpx)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def app_and_fetcher():
-    from backend.main import create_app
     from backend.dependencies import get_fetcher
+    from backend.main import create_app
 
     app = create_app()
 
     mock_fetcher = MagicMock()
     import pandas as pd
+
     idx = pd.date_range("2024-01-02", periods=252, freq="B", tz="UTC")
     closes = [150.0 + i * 0.2 for i in range(252)]
-    df = pd.DataFrame({
-        "Open": [c - 0.5 for c in closes], "High": [c + 1.0 for c in closes],
-        "Low": [c - 1.0 for c in closes], "Close": closes,
-        "Volume": [50_000_000] * 252,
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "Open": [c - 0.5 for c in closes],
+            "High": [c + 1.0 for c in closes],
+            "Low": [c - 1.0 for c in closes],
+            "Close": closes,
+            "Volume": [50_000_000] * 252,
+        },
+        index=idx,
+    )
     mock_fetcher.get_ohlcv.return_value = df
     mock_fetcher.get_fundamental_info.return_value = {
-        "regularMarketPrice": 182.4, "trailingPE": 28.5, "beta": 1.24,
-        "dividendRate": 0.96, "dividendYield": 0.0053, "earningsGrowth": 0.08,
-        "forwardPE": 25.0, "shortName": "Apple Inc.", "currency": "USD",
-        "exchange": "NMS", "sector": "Technology", "industry": "Consumer Electronics",
-        "marketCap": 2_800_000_000_000, "fiftyTwoWeekHigh": 199.62,
-        "fiftyTwoWeekLow": 124.17, "revenueGrowth": 0.05,
+        "regularMarketPrice": 182.4,
+        "trailingPE": 28.5,
+        "beta": 1.24,
+        "dividendRate": 0.96,
+        "dividendYield": 0.0053,
+        "earningsGrowth": 0.08,
+        "forwardPE": 25.0,
+        "shortName": "Apple Inc.",
+        "currency": "USD",
+        "exchange": "NMS",
+        "sector": "Technology",
+        "industry": "Consumer Electronics",
+        "marketCap": 2_800_000_000_000,
+        "fiftyTwoWeekHigh": 199.62,
+        "fiftyTwoWeekLow": 124.17,
+        "revenueGrowth": 0.05,
         "regularMarketPreviousClose": 180.0,
     }
     mock_fetcher.get_risk_free_rate.return_value = 0.045

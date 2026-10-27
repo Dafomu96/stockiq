@@ -54,9 +54,9 @@ logger = logging.getLogger(__name__)
 # Swensen's long-run 7.2% estimate is the fallback.
 # ---------------------------------------------------------------------------
 
-_DEFAULT_PESSIMISTIC_RATE = 0.04    # 4%  — below-average decade
-_DEFAULT_BASE_RATE = 0.072          # 7.2% — Swensen long-run estimate
-_DEFAULT_OPTIMISTIC_RATE = 0.10     # 10% — historical S&P 500 long-run
+_DEFAULT_PESSIMISTIC_RATE = 0.04  # 4%  — below-average decade
+_DEFAULT_BASE_RATE = 0.072  # 7.2% — Swensen long-run estimate
+_DEFAULT_OPTIMISTIC_RATE = 0.10  # 10% — historical S&P 500 long-run
 
 # Sharpe ratio risk-free rate fallback (if CAPM rf not supplied)
 _DEFAULT_RISK_FREE_RATE = 0.045
@@ -65,6 +65,7 @@ _DEFAULT_RISK_FREE_RATE = 0.045
 # ---------------------------------------------------------------------------
 # Output dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class YearDataPoint:
@@ -215,18 +216,21 @@ class SimulationResult:
     year_by_year: list[YearDataPoint]
     assumptions: dict[str, object]
     notes: list[str]
-    disclaimer: str = field(default=(
-        "All projections are illustrative only. They assume constant annual "
-        "returns — real markets are volatile. Results are gross nominal returns "
-        "and do not account for taxes, inflation, or transaction costs. "
-        "Past performance does not guarantee future results. "
-        "This is not financial advice."
-    ))
+    disclaimer: str = field(
+        default=(
+            "All projections are illustrative only. They assume constant annual "
+            "returns — real markets are volatile. Results are gross nominal returns "
+            "and do not account for taxes, inflation, or transaction costs. "
+            "Past performance does not guarantee future results. "
+            "This is not financial advice."
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def simulate(
     ticker: str,
@@ -298,15 +302,20 @@ def simulate(
     effective_volatility, vol_source = _resolve_volatility(annual_volatility)
 
     scenarios = _compute_scenarios(
-        initial_investment, horizon_years,
-        pessimistic_rate, effective_base_rate, optimistic_rate,
+        initial_investment,
+        horizon_years,
+        pessimistic_rate,
+        effective_base_rate,
+        optimistic_rate,
     )
 
     dca_result: DCAResult | None = None
     if monthly_contribution > 0:
         dca_result = _compute_dca(
-            initial_investment, monthly_contribution,
-            horizon_years, effective_base_rate,
+            initial_investment,
+            monthly_contribution,
+            horizon_years,
+            effective_base_rate,
             scenarios[1].final_value,  # base scenario no-DCA value
         )
 
@@ -326,26 +335,42 @@ def simulate(
     )
 
     year_by_year = _compute_year_by_year(
-        initial_investment, monthly_contribution,
-        horizon_years, pessimistic_rate, effective_base_rate, optimistic_rate,
+        initial_investment,
+        monthly_contribution,
+        horizon_years,
+        pessimistic_rate,
+        effective_base_rate,
+        optimistic_rate,
     )
 
     assumptions = _build_assumptions(
-        pessimistic_rate, effective_base_rate, optimistic_rate,
-        effective_volatility, vol_source, risk_free_rate,
-        capm_required_return, monthly_contribution,
+        pessimistic_rate,
+        effective_base_rate,
+        optimistic_rate,
+        effective_volatility,
+        vol_source,
+        risk_free_rate,
+        capm_required_return,
+        monthly_contribution,
     )
 
     notes = _build_notes(
-        scenarios, dca_result, risk, break_even, effective_base_rate,
+        scenarios,
+        dca_result,
+        risk,
+        break_even,
+        effective_base_rate,
         capm_required_return,
     )
 
     logger.info(
         "simulation ticker=%s investment=%.0f horizon=%dy "
         "base_rate=%.3f base_final=%.0f",
-        ticker, initial_investment, horizon_years,
-        effective_base_rate, scenarios[1].final_value,
+        ticker,
+        initial_investment,
+        horizon_years,
+        effective_base_rate,
+        scenarios[1].final_value,
     )
 
     return SimulationResult(
@@ -366,6 +391,7 @@ def simulate(
 # Validation
 # ---------------------------------------------------------------------------
 
+
 def _validate_inputs(initial_investment: float, horizon_years: int) -> None:
     if initial_investment <= 0:
         raise ValueError(
@@ -373,9 +399,7 @@ def _validate_inputs(initial_investment: float, horizon_years: int) -> None:
             "Use a positive number representing the amount to invest."
         )
     if horizon_years < 1:
-        raise ValueError(
-            f"horizon_years must be >= 1, got {horizon_years}."
-        )
+        raise ValueError(f"horizon_years must be >= 1, got {horizon_years}.")
     if horizon_years > 50:
         raise ValueError(
             f"horizon_years={horizon_years} exceeds the 50-year cap. "
@@ -387,6 +411,7 @@ def _validate_inputs(initial_investment: float, horizon_years: int) -> None:
 # Core computation helpers
 # ---------------------------------------------------------------------------
 
+
 def _resolve_base_rate(
     capm_required_return: float | None,
     explicit_base_rate: float | None,
@@ -396,14 +421,10 @@ def _resolve_base_rate(
     Priority: CAPM required return > explicit base_rate > default 7.2%.
     """
     if capm_required_return is not None and capm_required_return > 0:
-        logger.debug(
-            "base_rate resolved from CAPM: %.4f", capm_required_return
-        )
+        logger.debug("base_rate resolved from CAPM: %.4f", capm_required_return)
         return capm_required_return
     if explicit_base_rate is not None:
-        logger.debug(
-            "base_rate resolved from explicit: %.4f", explicit_base_rate
-        )
+        logger.debug("base_rate resolved from explicit: %.4f", explicit_base_rate)
         return explicit_base_rate
     logger.debug("base_rate using Swensen default: %.4f", _DEFAULT_BASE_RATE)
     return _DEFAULT_BASE_RATE
@@ -445,14 +466,16 @@ def _compute_scenarios(
         # CAGR = (final/initial)^(1/years) - 1
         cagr = round((final_value / initial) ** (1 / years) - 1, 6)
 
-        results.append(ScenarioResult(
-            label=label,
-            annual_rate=rate,
-            final_value=final_value,
-            total_gain=total_gain,
-            gain_pct=gain_pct,
-            cagr=cagr,
-        ))
+        results.append(
+            ScenarioResult(
+                label=label,
+                annual_rate=rate,
+                final_value=final_value,
+                total_gain=total_gain,
+                gain_pct=gain_pct,
+                cagr=cagr,
+            )
+        )
 
     return results
 
@@ -498,9 +521,7 @@ def _compute_dca(
 
     # Effective CAGR on total capital contributed
     if total_contributed > 0 and final_value > 0:
-        effective_cagr = round(
-            (final_value / total_contributed) ** (1 / years) - 1, 6
-        )
+        effective_cagr = round((final_value / total_contributed) ** (1 / years) - 1, 6)
     else:
         effective_cagr = 0.0
 
@@ -592,11 +613,13 @@ def _compute_break_even(
     is_undervalued: bool | None = None
     margin_of_safety: float | None = None
 
-    if gordon_fair_value is not None and current_price is not None and current_price > 0:
+    if (
+        gordon_fair_value is not None
+        and current_price is not None
+        and current_price > 0
+    ):
         is_undervalued = gordon_fair_value > current_price
-        margin_of_safety = round(
-            (gordon_fair_value - current_price) / current_price, 4
-        )
+        margin_of_safety = round((gordon_fair_value - current_price) / current_price, 4)
 
     return BreakEvenAnalysis(
         break_even_year_base=break_even_base,
@@ -639,13 +662,15 @@ def _compute_year_by_year(
             fv_annuity = 0.0
         dca_base = round(fv_lump + fv_annuity, 2)
 
-        data.append(YearDataPoint(
-            year=t,
-            pessimistic=pess,
-            base=base,
-            optimistic=opt,
-            dca_base=dca_base,
-        ))
+        data.append(
+            YearDataPoint(
+                year=t,
+                pessimistic=pess,
+                base=base,
+                optimistic=opt,
+                dca_base=dca_base,
+            )
+        )
 
     return data
 
@@ -705,8 +730,8 @@ def _build_notes(
         f"initial investment grows to {base.final_value:,.0f} "
         f"(+{base.gain_pct:.1f}%) over {base.final_value:.0f} years. "
         + (
-            f"Rate derived from CAPM required return — "
-            f"this is what the market theoretically demands for this asset's risk."
+            "Rate derived from CAPM required return — "
+            "this is what the market theoretically demands for this asset's risk."
             if capm_required_return is not None
             else "Rate based on Swensen's long-run 7.2% equity estimate."
         )

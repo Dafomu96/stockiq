@@ -16,6 +16,8 @@ Test organisation:
     TestCompositeScore        — compute_technical_score() integration
 """
 
+from dataclasses import FrozenInstanceError
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -26,10 +28,10 @@ from analysis.technical import (
 )
 from config.exceptions import InsufficientDataError
 
-
 # ---------------------------------------------------------------------------
 # DataFrame builders
 # ---------------------------------------------------------------------------
+
 
 def _make_df(
     rows: int = 252,
@@ -107,6 +109,7 @@ def _make_overbought_df(rows: int = 100) -> pd.DataFrame:
 # TestDataValidation
 # ---------------------------------------------------------------------------
 
+
 class TestDataValidation:
     def test_raises_on_missing_close_column(self):
         df = _make_df().drop(columns=["Close"])
@@ -141,6 +144,7 @@ class TestDataValidation:
 # TestRSISignal
 # ---------------------------------------------------------------------------
 
+
 class TestRSISignal:
     def test_oversold_price_produces_buy_signal(self):
         df = _make_oversold_df(rows=100)
@@ -168,6 +172,7 @@ class TestRSISignal:
 
     def test_rsi_thresholds_match_settings(self):
         from config.settings import settings
+
         df = _make_df(rows=252)
         result = compute_technical_score(df)
         assert result.rsi.overbought_threshold == settings.rsi_overbought
@@ -182,6 +187,7 @@ class TestRSISignal:
 # ---------------------------------------------------------------------------
 # TestMACDSignal
 # ---------------------------------------------------------------------------
+
 
 class TestMACDSignal:
     def test_uptrend_produces_buy_leaning_macd(self):
@@ -210,7 +216,9 @@ class TestMACDSignal:
     def test_bullish_and_bearish_crossover_mutually_exclusive(self):
         df = _make_df(rows=252)
         result = compute_technical_score(df)
-        assert not (result.macd.is_bullish_crossover and result.macd.is_bearish_crossover)
+        assert not (
+            result.macd.is_bullish_crossover and result.macd.is_bearish_crossover
+        )
 
     def test_macd_note_references_murphy(self):
         df = _make_df(rows=252)
@@ -222,6 +230,7 @@ class TestMACDSignal:
 # ---------------------------------------------------------------------------
 # TestBollingerSignal
 # ---------------------------------------------------------------------------
+
 
 class TestBollingerSignal:
     def test_percent_b_in_valid_range_for_normal_prices(self):
@@ -260,6 +269,7 @@ class TestBollingerSignal:
 # TestMovingAverageSignal
 # ---------------------------------------------------------------------------
 
+
 class TestMovingAverageSignal:
     def test_uptrend_produces_golden_cross(self):
         """252 bars of uptrend: SMA50 should be above SMA200."""
@@ -277,8 +287,7 @@ class TestMovingAverageSignal:
         df = _make_df(rows=252)
         result = compute_technical_score(df)
         assert not (
-            result.moving_averages.golden_cross
-            and result.moving_averages.death_cross
+            result.moving_averages.golden_cross and result.moving_averages.death_cross
         )
 
     def test_sma200_unavailable_with_short_history(self):
@@ -305,6 +314,7 @@ class TestMovingAverageSignal:
 # TestOBVSignal
 # ---------------------------------------------------------------------------
 
+
 class TestOBVSignal:
     def test_rising_price_and_volume_gives_buy_signal(self):
         df = _make_df(rows=252, trend="up", volume=50_000_000)
@@ -330,6 +340,7 @@ class TestOBVSignal:
 # ---------------------------------------------------------------------------
 # TestADXSignal
 # ---------------------------------------------------------------------------
+
 
 class TestADXSignal:
     def test_strong_uptrend_has_high_adx(self):
@@ -360,6 +371,7 @@ class TestADXSignal:
 # TestCompositeScore — integration tests
 # ---------------------------------------------------------------------------
 
+
 class TestCompositeScore:
     def test_score_in_valid_range(self):
         df = _make_df(rows=252)
@@ -373,7 +385,9 @@ class TestCompositeScore:
 
     def test_uptrend_scores_higher_than_downtrend(self):
         up = compute_technical_score(_make_df(rows=252, trend="up"))
-        down = compute_technical_score(_make_df(rows=252, trend="down", start_price=500.0))
+        down = compute_technical_score(
+            _make_df(rows=252, trend="down", start_price=500.0)
+        )
         assert up.score > down.score
 
     def test_components_dict_has_all_expected_keys(self):
@@ -407,7 +421,7 @@ class TestCompositeScore:
     def test_result_is_frozen_dataclass(self):
         df = _make_df(rows=252)
         result = compute_technical_score(df)
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             result.score = 99.0  # type: ignore[misc]
 
     def test_score_never_exceeds_100_on_extreme_uptrend(self):

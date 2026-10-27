@@ -15,6 +15,8 @@ Test organisation:
     TestCanonicalAllocation       — invariants of the built-in model
 """
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from analysis.swensen import (
@@ -22,18 +24,15 @@ from analysis.swensen import (
     ETF_RECOMMENDATIONS,
     AssetClass,
     SwensenPortfolioResult,
+    _normalise_allocation,
     analyse_portfolio,
     compute_target_amounts,
-    _normalise_allocation,
-    _compute_swensen_score,
-    _compute_projection,
-    _compute_annual_cost,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _perfect_allocation() -> dict[AssetClass, float]:
     """Return the canonical Swensen allocation — zero drift."""
@@ -43,18 +42,19 @@ def _perfect_allocation() -> dict[AssetClass, float]:
 def _drifted_allocation() -> dict[AssetClass, float]:
     """Return an allocation with deliberate drift for testing."""
     return {
-        AssetClass.DOMESTIC_EQUITY: 0.45,       # +15pp (overweight)
+        AssetClass.DOMESTIC_EQUITY: 0.45,  # +15pp (overweight)
         AssetClass.INTERNATIONAL_EQUITY: 0.15,  # on target
-        AssetClass.EMERGING_MARKETS: 0.05,      # on target
-        AssetClass.REAL_ESTATE: 0.10,           # -10pp (underweight)
-        AssetClass.GOVERNMENT_BONDS: 0.15,      # on target
-        AssetClass.INFLATION_PROTECTED: 0.10,   # -5pp (at threshold)
+        AssetClass.EMERGING_MARKETS: 0.05,  # on target
+        AssetClass.REAL_ESTATE: 0.10,  # -10pp (underweight)
+        AssetClass.GOVERNMENT_BONDS: 0.15,  # on target
+        AssetClass.INFLATION_PROTECTED: 0.10,  # -5pp (at threshold)
     }
 
 
 # ---------------------------------------------------------------------------
 # TestCanonicalAllocation
 # ---------------------------------------------------------------------------
+
 
 class TestCanonicalAllocation:
     def test_canonical_allocation_sums_to_one(self):
@@ -79,9 +79,9 @@ class TestCanonicalAllocation:
     def test_all_etfs_have_ucits_alternative(self):
         """EU investors can't buy US-domiciled ETFs — UCITS must always exist."""
         for cls, etf in ETF_RECOMMENDATIONS.items():
-            assert etf.ucits_alternative is not None, (
-                f"{cls} ETF {etf.ticker} has no UCITS alternative"
-            )
+            assert (
+                etf.ucits_alternative is not None
+            ), f"{cls} ETF {etf.ticker} has no UCITS alternative"
 
     def test_domestic_equity_is_largest_allocation(self):
         """Swensen's model has 30% domestic equity as the anchor."""
@@ -91,6 +91,7 @@ class TestCanonicalAllocation:
 # ---------------------------------------------------------------------------
 # TestNormaliseAllocation
 # ---------------------------------------------------------------------------
+
 
 class TestNormaliseAllocation:
     def test_perfect_allocation_unchanged(self):
@@ -130,6 +131,7 @@ class TestNormaliseAllocation:
 # TestComputePositions (via analyse_portfolio)
 # ---------------------------------------------------------------------------
 
+
 class TestComputePositions:
     def test_perfect_portfolio_has_zero_drift(self):
         result = analyse_portfolio(_perfect_allocation(), total_value=10_000)
@@ -144,8 +146,7 @@ class TestComputePositions:
     def test_overweight_position_action_is_sell(self):
         result = analyse_portfolio(_drifted_allocation(), total_value=10_000)
         domestic = next(
-            p for p in result.positions
-            if p.asset_class == AssetClass.DOMESTIC_EQUITY
+            p for p in result.positions if p.asset_class == AssetClass.DOMESTIC_EQUITY
         )
         assert domestic.action == "sell"
         assert domestic.drift > 0
@@ -153,8 +154,7 @@ class TestComputePositions:
     def test_underweight_position_action_is_buy(self):
         result = analyse_portfolio(_drifted_allocation(), total_value=10_000)
         reits = next(
-            p for p in result.positions
-            if p.asset_class == AssetClass.REAL_ESTATE
+            p for p in result.positions if p.asset_class == AssetClass.REAL_ESTATE
         )
         assert reits.action == "buy"
         assert reits.drift < 0
@@ -186,6 +186,7 @@ class TestComputePositions:
 # TestRebalancingActions
 # ---------------------------------------------------------------------------
 
+
 class TestRebalancingActions:
     def test_no_actions_when_portfolio_is_perfect(self):
         result = analyse_portfolio(_perfect_allocation(), total_value=10_000)
@@ -203,8 +204,12 @@ class TestRebalancingActions:
     def test_sell_action_for_overweight_position(self):
         result = analyse_portfolio(_drifted_allocation(), total_value=10_000)
         domestic_action = next(
-            (a for a in result.rebalancing_actions
-             if a.asset_class == AssetClass.DOMESTIC_EQUITY), None
+            (
+                a
+                for a in result.rebalancing_actions
+                if a.asset_class == AssetClass.DOMESTIC_EQUITY
+            ),
+            None,
         )
         assert domestic_action is not None
         assert domestic_action.action == "sell"
@@ -212,8 +217,12 @@ class TestRebalancingActions:
     def test_buy_action_for_underweight_position(self):
         result = analyse_portfolio(_drifted_allocation(), total_value=10_000)
         reit_action = next(
-            (a for a in result.rebalancing_actions
-             if a.asset_class == AssetClass.REAL_ESTATE), None
+            (
+                a
+                for a in result.rebalancing_actions
+                if a.asset_class == AssetClass.REAL_ESTATE
+            ),
+            None,
         )
         assert reit_action is not None
         assert reit_action.action == "buy"
@@ -224,8 +233,7 @@ class TestRebalancingActions:
         amounts = {a.asset_class: a.amount for a in result.rebalancing_actions}
         # Domestic equity has +15pp drift, REITS has -10pp drift
         # Domestic action should be larger
-        if (AssetClass.DOMESTIC_EQUITY in amounts
-                and AssetClass.REAL_ESTATE in amounts):
+        if AssetClass.DOMESTIC_EQUITY in amounts and AssetClass.REAL_ESTATE in amounts:
             assert amounts[AssetClass.DOMESTIC_EQUITY] > amounts[AssetClass.REAL_ESTATE]
 
     def test_rebalancing_action_has_rationale(self):
@@ -243,15 +251,14 @@ class TestRebalancingActions:
         tight = analyse_portfolio(
             _drifted_allocation(), total_value=10_000, rebalance_threshold=0.01
         )
-        standard = analyse_portfolio(
-            _drifted_allocation(), total_value=10_000
-        )
+        standard = analyse_portfolio(_drifted_allocation(), total_value=10_000)
         assert len(tight.rebalancing_actions) >= len(standard.rebalancing_actions)
 
 
 # ---------------------------------------------------------------------------
 # TestSwensenScore
 # ---------------------------------------------------------------------------
+
 
 class TestSwensenScore:
     def test_perfect_portfolio_scores_100(self):
@@ -271,7 +278,7 @@ class TestSwensenScore:
             AssetClass.DOMESTIC_EQUITY: 0.32,  # +2pp
             AssetClass.INTERNATIONAL_EQUITY: 0.15,
             AssetClass.EMERGING_MARKETS: 0.05,
-            AssetClass.REAL_ESTATE: 0.18,      # -2pp
+            AssetClass.REAL_ESTATE: 0.18,  # -2pp
             AssetClass.GOVERNMENT_BONDS: 0.15,
             AssetClass.INFLATION_PROTECTED: 0.15,
         }
@@ -296,6 +303,7 @@ class TestSwensenScore:
 # ---------------------------------------------------------------------------
 # TestGrowthProjection
 # ---------------------------------------------------------------------------
+
 
 class TestGrowthProjection:
     def test_base_value_higher_than_pessimistic(self):
@@ -345,6 +353,7 @@ class TestGrowthProjection:
 # TestAnalysePortfolio — main public API
 # ---------------------------------------------------------------------------
 
+
 class TestAnalysePortfolio:
     def test_returns_swensen_portfolio_result(self):
         result = analyse_portfolio(_perfect_allocation(), total_value=10_000)
@@ -352,7 +361,7 @@ class TestAnalysePortfolio:
 
     def test_result_is_frozen(self):
         result = analyse_portfolio(_perfect_allocation(), total_value=10_000)
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             result.swensen_score = 99.0  # type: ignore[misc]
 
     def test_total_value_stored_correctly(self):
@@ -393,13 +402,14 @@ class TestAnalysePortfolio:
 
     def test_custom_target_allocation_respected(self):
         """User can override the Swensen allocation with their own."""
-        custom = {cls: 1/6 for cls in AssetClass}  # equal weight
+        custom = {cls: 1 / 6 for cls in AssetClass}  # equal weight
         result = analyse_portfolio(
-            _perfect_allocation(), total_value=10_000,
+            _perfect_allocation(),
+            total_value=10_000,
             target_allocation=custom,
         )
         for pos in result.positions:
-            assert pos.target_weight == pytest.approx(1/6, abs=1e-4)
+            assert pos.target_weight == pytest.approx(1 / 6, abs=1e-4)
 
     def test_annual_cost_positive(self):
         result = analyse_portfolio(_perfect_allocation(), total_value=10_000)
@@ -416,6 +426,7 @@ class TestAnalysePortfolio:
 # ---------------------------------------------------------------------------
 # TestComputeTargetAmounts
 # ---------------------------------------------------------------------------
+
 
 class TestComputeTargetAmounts:
     def test_amounts_sum_to_total_value(self):
@@ -435,14 +446,13 @@ class TestComputeTargetAmounts:
 
     def test_all_amounts_positive(self):
         amounts = compute_target_amounts(total_value=10_000)
-        for cls, amount in amounts.items():
+        for _cls, amount in amounts.items():
             assert amount > 0
 
     def test_custom_allocation_respected(self):
-        custom = {AssetClass.DOMESTIC_EQUITY: 1.0,
-                  **{cls: 0.0 for cls in AssetClass
-                     if cls != AssetClass.DOMESTIC_EQUITY}}
-        amounts = compute_target_amounts(
-            total_value=10_000, target_allocation=custom
-        )
+        custom = {
+            AssetClass.DOMESTIC_EQUITY: 1.0,
+            **{cls: 0.0 for cls in AssetClass if cls != AssetClass.DOMESTIC_EQUITY},
+        }
+        amounts = compute_target_amounts(total_value=10_000, target_allocation=custom)
         assert amounts[AssetClass.DOMESTIC_EQUITY] == pytest.approx(10_000.0)

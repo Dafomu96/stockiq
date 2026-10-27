@@ -14,7 +14,7 @@ Test organisation:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from dataclasses import FrozenInstanceError
 
 import pytest
 
@@ -41,10 +41,10 @@ from analysis.technical import (
     TechnicalScore,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_capm(beta: float = 1.0) -> CAPMResult:
     return CAPMResult(
@@ -82,6 +82,8 @@ def _make_pe(interpretation: str = "fairly_valued") -> PERatioResult:
 
 
 _MISSING = object()  # sentinel — None is a valid value for gordon
+
+
 def _make_fundamental(
     score: float = 65.0,
     signal: str = "buy",
@@ -111,46 +113,66 @@ def _make_fundamental(
 
 def _make_rsi(signal: Signal = Signal.NEUTRAL) -> RSIResult:
     return RSIResult(
-        value=50.0, signal=signal,
-        overbought_threshold=70.0, oversold_threshold=30.0,
+        value=50.0,
+        signal=signal,
+        overbought_threshold=70.0,
+        oversold_threshold=30.0,
     )
 
 
 def _make_macd(signal: Signal = Signal.NEUTRAL) -> MACDResult:
     return MACDResult(
-        macd=0.5, signal_line=0.3, histogram=0.2,
+        macd=0.5,
+        signal_line=0.3,
+        histogram=0.2,
         signal=signal,
-        is_bullish_crossover=False, is_bearish_crossover=False,
+        is_bullish_crossover=False,
+        is_bearish_crossover=False,
     )
 
 
 def _make_bollinger(signal: Signal = Signal.NEUTRAL) -> BollingerResult:
     return BollingerResult(
-        upper=155.0, middle=150.0, lower=145.0,
-        bandwidth=0.067, percent_b=0.5, signal=signal,
+        upper=155.0,
+        middle=150.0,
+        lower=145.0,
+        bandwidth=0.067,
+        percent_b=0.5,
+        signal=signal,
     )
 
 
 def _make_ma(signal: Signal = Signal.NEUTRAL) -> MovingAverageResult:
     return MovingAverageResult(
-        sma_20=148.0, sma_50=145.0, sma_200=140.0, ema_20=149.0,
+        sma_20=148.0,
+        sma_50=145.0,
+        sma_200=140.0,
+        ema_20=149.0,
         current_price=150.0,
-        golden_cross=True, death_cross=False, price_above_sma200=True,
+        golden_cross=True,
+        death_cross=False,
+        price_above_sma200=True,
         signal=signal,
     )
 
 
 def _make_obv(signal: Signal = Signal.NEUTRAL) -> OBVResult:
     return OBVResult(
-        current_obv=5_000_000.0, obv_sma=4_800_000.0,
-        volume_trend="rising", confirms_price_trend=True, signal=signal,
+        current_obv=5_000_000.0,
+        obv_sma=4_800_000.0,
+        volume_trend="rising",
+        confirms_price_trend=True,
+        signal=signal,
     )
 
 
 def _make_adx(signal: Signal = Signal.NEUTRAL) -> ADXResult:
     return ADXResult(
-        adx=28.0, plus_di=22.0, minus_di=15.0,
-        trend_strength="strong", signal=signal,
+        adx=28.0,
+        plus_di=22.0,
+        minus_di=15.0,
+        trend_strength="strong",
+        signal=signal,
     )
 
 
@@ -159,13 +181,21 @@ def _make_technical(
     signal_str: str = "buy",
     warnings: list[str] | None = None,
 ) -> TechnicalScore:
-    sig = Signal(signal_str) if signal_str in ("buy", "neutral", "sell") else Signal.NEUTRAL
+    sig = (
+        Signal(signal_str)
+        if signal_str in ("buy", "neutral", "sell")
+        else Signal.NEUTRAL
+    )
     return TechnicalScore(
         score=score,
         signal=signal_str,
         components={
-            "rsi": 65.0, "macd": 70.0, "bollinger": 60.0,
-            "moving_averages": 70.0, "obv": 65.0, "adx": 55.0,
+            "rsi": 65.0,
+            "macd": 70.0,
+            "bollinger": 60.0,
+            "moving_averages": 70.0,
+            "obv": 65.0,
+            "adx": 55.0,
         },
         rsi=_make_rsi(sig),
         macd=_make_macd(sig),
@@ -182,21 +212,18 @@ def _make_technical(
 # TestWeightedAverageStrategy
 # ---------------------------------------------------------------------------
 
+
 class TestWeightedAverageStrategy:
 
     def test_composite_is_weighted_average(self):
-        strategy = WeightedAverageStrategy(
-            weight_fundamental=0.5, weight_technical=0.5
-        )
+        strategy = WeightedAverageStrategy(weight_fundamental=0.5, weight_technical=0.5)
         f = _make_fundamental(score=80.0)
         t = _make_technical(score=60.0)
         result = strategy.combine("AAPL", f, t)
         assert result.composite_score == pytest.approx(70.0, abs=0.1)
 
     def test_asymmetric_weights_applied_correctly(self):
-        strategy = WeightedAverageStrategy(
-            weight_fundamental=0.7, weight_technical=0.3
-        )
+        strategy = WeightedAverageStrategy(weight_fundamental=0.7, weight_technical=0.3)
         f = _make_fundamental(score=100.0)
         t = _make_technical(score=0.0)
         result = strategy.combine("AAPL", f, t)
@@ -231,35 +258,25 @@ class TestWeightedAverageStrategy:
 
     def test_raises_on_weights_not_summing_to_one(self):
         with pytest.raises(ValueError, match="sum to 1.0"):
-            WeightedAverageStrategy(
-                weight_fundamental=0.6, weight_technical=0.6
-            )
+            WeightedAverageStrategy(weight_fundamental=0.6, weight_technical=0.6)
 
     def test_raises_on_zero_weight(self):
         with pytest.raises(ValueError, match="must be in"):
-            WeightedAverageStrategy(
-                weight_fundamental=0.0, weight_technical=1.0
-            )
+            WeightedAverageStrategy(weight_fundamental=0.0, weight_technical=1.0)
 
     def test_weights_dict_sums_to_one(self):
-        strategy = WeightedAverageStrategy(
-            weight_fundamental=0.6, weight_technical=0.4
-        )
+        strategy = WeightedAverageStrategy(weight_fundamental=0.6, weight_technical=0.4)
         total = sum(strategy.weights.values())
         assert total == pytest.approx(1.0, abs=0.001)
 
     def test_name_includes_percentages(self):
-        strategy = WeightedAverageStrategy(
-            weight_fundamental=0.6, weight_technical=0.4
-        )
+        strategy = WeightedAverageStrategy(weight_fundamental=0.6, weight_technical=0.4)
         assert "60%" in strategy.name
         assert "40%" in strategy.name
 
     def test_ticker_is_uppercased_in_result(self):
         strategy = WeightedAverageStrategy()
-        result = strategy.combine(
-            "aapl", _make_fundamental(), _make_technical()
-        )
+        result = strategy.combine("aapl", _make_fundamental(), _make_technical())
         assert result.ticker == "AAPL"
 
     def test_score_breakdown_has_all_keys(self):
@@ -275,7 +292,8 @@ class TestWeightedAverageStrategy:
         assert result.score_breakdown["composite"] == result.composite_score
 
     def test_analysed_at_is_utc_iso_string(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         strategy = WeightedAverageStrategy()
         result = strategy.combine("AAPL", _make_fundamental(), _make_technical())
         # Should parse without error and be timezone-aware
@@ -291,6 +309,7 @@ class TestWeightedAverageStrategy:
 # ---------------------------------------------------------------------------
 # TestFundamentalOnlyStrategy
 # ---------------------------------------------------------------------------
+
 
 class TestFundamentalOnlyStrategy:
 
@@ -339,6 +358,7 @@ class TestFundamentalOnlyStrategy:
 # TestConfidenceAssessment
 # ---------------------------------------------------------------------------
 
+
 class TestConfidenceAssessment:
 
     def test_high_confidence_when_no_warnings_and_full_data(self):
@@ -386,19 +406,20 @@ class TestConfidenceAssessment:
 # TestRunScoring
 # ---------------------------------------------------------------------------
 
+
 class TestRunScoring:
 
     def test_uses_default_weighted_strategy_when_none_given(self):
-        result = run_scoring(
-            "AAPL", _make_fundamental(), _make_technical()
-        )
+        result = run_scoring("AAPL", _make_fundamental(), _make_technical())
         assert "Weighted average" in result.strategy_name
 
     def test_accepts_custom_strategy(self):
         custom = FundamentalOnlyStrategy()
         result = run_scoring(
-            "AAPL", _make_fundamental(score=72.0),
-            _make_technical(score=10.0), strategy=custom
+            "AAPL",
+            _make_fundamental(score=72.0),
+            _make_technical(score=10.0),
+            strategy=custom,
         )
         # Fundamental only — technical score (10) doesn't pull it down
         assert result.composite_score == pytest.approx(72.0, abs=0.1)
@@ -413,13 +434,14 @@ class TestRunScoring:
 
     def test_result_is_frozen(self):
         result = run_scoring("AAPL", _make_fundamental(), _make_technical())
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             result.composite_score = 99.0  # type: ignore[misc]
 
 
 # ---------------------------------------------------------------------------
 # TestCompositeResultContract
 # ---------------------------------------------------------------------------
+
 
 class TestCompositeResultContract:
     """Ensure the CompositeResult shape is stable — this is the API contract."""

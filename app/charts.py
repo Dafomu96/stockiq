@@ -35,39 +35,47 @@ _RED = "#ef4444"
 _AMBER = "#f59e0b"
 _PURPLE = "#8b5cf6"
 
-_BASE_LAYOUT = dict(
-    paper_bgcolor=_PAPER,
-    plot_bgcolor=_BG,
-    font=dict(family="JetBrains Mono, monospace", size=11, color=_TEXT),
-    margin=dict(l=8, r=8, t=36, b=8),
-    legend=dict(
-        bgcolor="rgba(0,0,0,0)",
-        bordercolor=_GRID,
-        borderwidth=0,
-        font=dict(size=10),
-    ),
-    xaxis=dict(
-        gridcolor=_GRID, zerolinecolor=_GRID,
-        showline=False, tickfont=dict(size=10),
-    ),
-    yaxis=dict(
-        gridcolor=_GRID, zerolinecolor=_GRID,
-        showline=False, tickfont=dict(size=10),
-    ),
-)
+_BASE_LAYOUT = {
+    "paper_bgcolor": _PAPER,
+    "plot_bgcolor": _BG,
+    "font": {"family": "JetBrains Mono, monospace", "size": 11, "color": _TEXT},
+    "margin": {"l": 8, "r": 8, "t": 36, "b": 8},
+    "legend": {
+        "bgcolor": "rgba(0,0,0,0)",
+        "bordercolor": _GRID,
+        "borderwidth": 0,
+        "font": {"size": 10},
+    },
+    "xaxis": {
+        "gridcolor": _GRID,
+        "zerolinecolor": _GRID,
+        "showline": False,
+        "tickfont": {"size": 10},
+    },
+    "yaxis": {
+        "gridcolor": _GRID,
+        "zerolinecolor": _GRID,
+        "showline": False,
+        "tickfont": {"size": 10},
+    },
+}
 
 
 def _apply_base(fig: go.Figure, title: str = "") -> go.Figure:
     layout = dict(**_BASE_LAYOUT)
     if title:
-        layout["title"] = dict(
-            text=title, font=dict(size=13, color=_WHITE), x=0, xanchor="left"
-        )
+        layout["title"] = {
+            "text": title,
+            "font": {"size": 13, "color": _WHITE},
+            "x": 0,
+            "xanchor": "left",
+        }
     fig.update_layout(**layout)
     return fig
 
 
 # ── Price + indicators chart ────────────────────────────────────────────────
+
 
 def build_price_chart(
     df: pd.DataFrame,
@@ -90,7 +98,8 @@ def build_price_chart(
         Plotly Figure ready for st.plotly_chart().
     """
     fig = make_subplots(
-        rows=3, cols=1,
+        rows=3,
+        cols=1,
         shared_xaxes=True,
         row_heights=[0.65, 0.175, 0.175],
         vertical_spacing=0.02,
@@ -98,18 +107,24 @@ def build_price_chart(
     )
 
     # ── Row 1: Candlestick ────────────────────────────────────────────────
-    fig.add_trace(go.Candlestick(
-        x=df.index,
-        open=df["Open"], high=df["High"],
-        low=df["Low"], close=df["Close"],
-        increasing_line_color=_GREEN,
-        decreasing_line_color=_RED,
-        increasing_fillcolor=_GREEN,
-        decreasing_fillcolor=_RED,
-        name="Price",
-        showlegend=False,
-        line=dict(width=1),
-    ), row=1, col=1)
+    fig.add_trace(
+        go.Candlestick(
+            x=df.index,
+            open=df["Open"],
+            high=df["High"],
+            low=df["Low"],
+            close=df["Close"],
+            increasing_line_color=_GREEN,
+            decreasing_line_color=_RED,
+            increasing_fillcolor=_GREEN,
+            decreasing_fillcolor=_RED,
+            name="Price",
+            showlegend=False,
+            line={"width": 1},
+        ),
+        row=1,
+        col=1,
+    )
 
     # Moving averages
     ma = technical.moving_averages
@@ -120,54 +135,100 @@ def build_price_chart(
         ("EMA_20", ma.ema_20, "#06b6d4", "EMA 20"),
     ]
     for col_name, val, color, label in _ma_pairs:
-        ma_col = f"SMA_{col_name.split('_')[1]}" if "SMA" in col_name else f"EMA_{col_name.split('_')[1]}"
+        ma_col = (
+            f"SMA_{col_name.split('_')[1]}"
+            if "SMA" in col_name
+            else f"EMA_{col_name.split('_')[1]}"
+        )
         if val is not None and ma_col in df.columns:
-            fig.add_trace(go.Scatter(
-                x=df.index, y=df[ma_col],
-                mode="lines", line=dict(color=color, width=1.2),
-                name=label, opacity=0.85,
-            ), row=1, col=1)
+            fig.add_trace(
+                go.Scatter(
+                    x=df.index,
+                    y=df[ma_col],
+                    mode="lines",
+                    line={"color": color, "width": 1.2},
+                    name=label,
+                    opacity=0.85,
+                ),
+                row=1,
+                col=1,
+            )
 
     # Bollinger Bands
     bb_upper_col = [c for c in df.columns if c.startswith("BBU_")]
     bb_lower_col = [c for c in df.columns if c.startswith("BBL_")]
     if bb_upper_col and bb_lower_col:
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[bb_upper_col[0]],
-            mode="lines", line=dict(color=_BLUE, width=0.8, dash="dot"),
-            name="BB Upper", opacity=0.5, showlegend=False,
-        ), row=1, col=1)
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[bb_lower_col[0]],
-            mode="lines", line=dict(color=_BLUE, width=0.8, dash="dot"),
-            fill="tonexty", fillcolor="rgba(59,130,246,0.05)",
-            name="Bollinger Bands", opacity=0.5,
-        ), row=1, col=1)
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[bb_upper_col[0]],
+                mode="lines",
+                line={"color": _BLUE, "width": 0.8, "dash": "dot"},
+                name="BB Upper",
+                opacity=0.5,
+                showlegend=False,
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[bb_lower_col[0]],
+                mode="lines",
+                line={"color": _BLUE, "width": 0.8, "dash": "dot"},
+                fill="tonexty",
+                fillcolor="rgba(59,130,246,0.05)",
+                name="Bollinger Bands",
+                opacity=0.5,
+            ),
+            row=1,
+            col=1,
+        )
 
     # ── Row 2: RSI ────────────────────────────────────────────────────────
     rsi_col = "RSI_14"
     if rsi_col in df.columns:
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[rsi_col],
-            mode="lines", line=dict(color=_BLUE, width=1.5),
-            name="RSI", showlegend=False,
-        ), row=2, col=1)
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[rsi_col],
+                mode="lines",
+                line={"color": _BLUE, "width": 1.5},
+                name="RSI",
+                showlegend=False,
+            ),
+            row=2,
+            col=1,
+        )
         # Overbought / oversold zones
         fig.add_hrect(
-            y0=70, y1=100, row=2, col=1,
-            fillcolor=f"{_RED}18", line_width=0,
+            y0=70,
+            y1=100,
+            row=2,
+            col=1,
+            fillcolor=f"{_RED}18",
+            line_width=0,
         )
         fig.add_hrect(
-            y0=0, y1=30, row=2, col=1,
-            fillcolor=f"{_GREEN}18", line_width=0,
+            y0=0,
+            y1=30,
+            row=2,
+            col=1,
+            fillcolor=f"{_GREEN}18",
+            line_width=0,
         )
         fig.add_hline(
-            y=70, row=2, col=1,
-            line=dict(color=_RED, width=0.8, dash="dot"),
+            y=70,
+            row=2,
+            col=1,
+            line={"color": _RED, "width": 0.8, "dash": "dot"},
         )
         fig.add_hline(
-            y=30, row=2, col=1,
-            line=dict(color=_GREEN, width=0.8, dash="dot"),
+            y=30,
+            row=2,
+            col=1,
+            line={"color": _GREEN, "width": 0.8, "dash": "dot"},
         )
         fig.update_yaxes(range=[0, 100], row=2)
 
@@ -179,25 +240,46 @@ def build_price_chart(
     if hist_col in df.columns:
         hist = df[hist_col]
         colors = [_GREEN if v >= 0 else _RED for v in hist]
-        fig.add_trace(go.Bar(
-            x=df.index, y=hist,
-            marker_color=colors, opacity=0.7,
-            name="MACD Histogram", showlegend=False,
-        ), row=3, col=1)
+        fig.add_trace(
+            go.Bar(
+                x=df.index,
+                y=hist,
+                marker_color=colors,
+                opacity=0.7,
+                name="MACD Histogram",
+                showlegend=False,
+            ),
+            row=3,
+            col=1,
+        )
 
     if macd_col in df.columns:
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[macd_col],
-            mode="lines", line=dict(color=_BLUE, width=1.2),
-            name="MACD", showlegend=False,
-        ), row=3, col=1)
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[macd_col],
+                mode="lines",
+                line={"color": _BLUE, "width": 1.2},
+                name="MACD",
+                showlegend=False,
+            ),
+            row=3,
+            col=1,
+        )
 
     if sig_col in df.columns:
-        fig.add_trace(go.Scatter(
-            x=df.index, y=df[sig_col],
-            mode="lines", line=dict(color=_AMBER, width=1.2),
-            name="Signal", showlegend=False,
-        ), row=3, col=1)
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[sig_col],
+                mode="lines",
+                line={"color": _AMBER, "width": 1.2},
+                name="Signal",
+                showlegend=False,
+            ),
+            row=3,
+            col=1,
+        )
 
     # ── Layout ────────────────────────────────────────────────────────────
     fig = _apply_base(fig, title)
@@ -213,6 +295,7 @@ def build_price_chart(
 
 
 # ── Swensen allocation donut ─────────────────────────────────────────────────
+
 
 def build_allocation_chart(
     current: dict[str, float],
@@ -233,30 +316,39 @@ def build_allocation_chart(
     labels = list(current.keys())
 
     fig = make_subplots(
-        rows=1, cols=2,
+        rows=1,
+        cols=2,
         specs=[[{"type": "pie"}, {"type": "pie"}]],
         subplot_titles=("Current", "Target (Swensen)"),
     )
 
-    fig.add_trace(go.Pie(
-        labels=labels,
-        values=[current[k] * 100 for k in labels],
-        hole=0.6,
-        marker=dict(colors=colors, line=dict(color=_BG, width=2)),
-        textinfo="label+percent",
-        textfont=dict(size=10),
-        showlegend=False,
-    ), row=1, col=1)
+    fig.add_trace(
+        go.Pie(
+            labels=labels,
+            values=[current[k] * 100 for k in labels],
+            hole=0.6,
+            marker={"colors": colors, "line": {"color": _BG, "width": 2}},
+            textinfo="label+percent",
+            textfont={"size": 10},
+            showlegend=False,
+        ),
+        row=1,
+        col=1,
+    )
 
-    fig.add_trace(go.Pie(
-        labels=labels,
-        values=[target.get(k, 0) * 100 for k in labels],
-        hole=0.6,
-        marker=dict(colors=colors, line=dict(color=_BG, width=2)),
-        textinfo="label+percent",
-        textfont=dict(size=10),
-        showlegend=False,
-    ), row=1, col=2)
+    fig.add_trace(
+        go.Pie(
+            labels=labels,
+            values=[target.get(k, 0) * 100 for k in labels],
+            hole=0.6,
+            marker={"colors": colors, "line": {"color": _BG, "width": 2}},
+            textinfo="label+percent",
+            textfont={"size": 10},
+            showlegend=False,
+        ),
+        row=1,
+        col=2,
+    )
 
     fig = _apply_base(fig, title)
     fig.update_layout(height=300)
@@ -264,6 +356,7 @@ def build_allocation_chart(
 
 
 # ── Simulator P&L projection chart ──────────────────────────────────────────
+
 
 def build_simulation_chart(
     result: SimulationResult,
@@ -289,58 +382,72 @@ def build_simulation_chart(
     base_values = [d.base for d in result.year_by_year]
 
     # Optimistic–pessimistic band fill
-    fig.add_trace(go.Scatter(
-        x=years + years[::-1],
-        y=opt_values + pess_values[::-1],
-        fill="toself",
-        fillcolor=f"{_BLUE}12",
-        line=dict(color="rgba(0,0,0,0)"),
-        hoverinfo="skip",
-        showlegend=False,
-        name="Range",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=years + years[::-1],
+            y=opt_values + pess_values[::-1],
+            fill="toself",
+            fillcolor=f"{_BLUE}12",
+            line={"color": "rgba(0,0,0,0)"},
+            hoverinfo="skip",
+            showlegend=False,
+            name="Range",
+        )
+    )
 
     # Pessimistic line
-    fig.add_trace(go.Scatter(
-        x=years, y=pess_values,
-        mode="lines",
-        line=dict(color=_RED, width=1.5, dash="dot"),
-        name="Pessimistic (4%)",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=years,
+            y=pess_values,
+            mode="lines",
+            line={"color": _RED, "width": 1.5, "dash": "dot"},
+            name="Pessimistic (4%)",
+        )
+    )
 
     # Base line
-    fig.add_trace(go.Scatter(
-        x=years, y=base_values,
-        mode="lines+markers",
-        line=dict(color=_BLUE, width=2.5),
-        marker=dict(size=5, color=_BLUE),
-        name=f"Base ({result.scenarios[1].annual_rate:.1%})",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=years,
+            y=base_values,
+            mode="lines+markers",
+            line={"color": _BLUE, "width": 2.5},
+            marker={"size": 5, "color": _BLUE},
+            name=f"Base ({result.scenarios[1].annual_rate:.1%})",
+        )
+    )
 
     # Optimistic line
-    fig.add_trace(go.Scatter(
-        x=years, y=opt_values,
-        mode="lines",
-        line=dict(color=_GREEN, width=1.5, dash="dot"),
-        name="Optimistic (10%)",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=years,
+            y=opt_values,
+            mode="lines",
+            line={"color": _GREEN, "width": 1.5, "dash": "dot"},
+            name="Optimistic (10%)",
+        )
+    )
 
     # DCA line
     if show_dca and result.dca is not None:
         dca_values = [d.dca_base for d in result.year_by_year]
-        fig.add_trace(go.Scatter(
-            x=years, y=dca_values,
-            mode="lines",
-            line=dict(color=_AMBER, width=2, dash="dash"),
-            name=f"DCA +{result.dca.monthly_contribution:,.0f}/mo",
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=years,
+                y=dca_values,
+                mode="lines",
+                line={"color": _AMBER, "width": 2, "dash": "dash"},
+                name=f"DCA +{result.dca.monthly_contribution:,.0f}/mo",
+            )
+        )
 
     # Initial investment reference line
     fig.add_hline(
         y=result.initial_investment,
-        line=dict(color=_MUTED if True else _GRID, width=1, dash="dot"),
+        line={"color": _MUTED if True else _GRID, "width": 1, "dash": "dot"},
         annotation_text="Initial investment",
-        annotation_font=dict(size=10, color="#6b7280"),
+        annotation_font={"size": 10, "color": "#6b7280"},
     )
 
     fig = _apply_base(fig, title)
@@ -356,6 +463,7 @@ def build_simulation_chart(
 
 
 # ── Swensen drift bar chart ──────────────────────────────────────────────────
+
 
 def build_drift_chart(
     positions: list,
@@ -374,22 +482,24 @@ def build_drift_chart(
     colors = [_RED if d > 0 else _GREEN for d in drifts]
     threshold = 5.0
 
-    fig = go.Figure(go.Bar(
-        x=drifts,
-        y=labels,
-        orientation="h",
-        marker_color=colors,
-        marker_opacity=0.85,
-        text=[f"{d:+.1f}pp" for d in drifts],
-        textposition="outside",
-        textfont=dict(size=11),
-    ))
+    fig = go.Figure(
+        go.Bar(
+            x=drifts,
+            y=labels,
+            orientation="h",
+            marker_color=colors,
+            marker_opacity=0.85,
+            text=[f"{d:+.1f}pp" for d in drifts],
+            textposition="outside",
+            textfont={"size": 11},
+        )
+    )
 
     # Threshold lines
     for xval in [threshold, -threshold]:
         fig.add_vline(
             x=xval,
-            line=dict(color=_AMBER, width=1, dash="dot"),
+            line={"color": _AMBER, "width": 1, "dash": "dot"},
         )
 
     fig = _apply_base(fig, title)

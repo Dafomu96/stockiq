@@ -22,10 +22,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
-
 # ---------------------------------------------------------------------------
 # Common
 # ---------------------------------------------------------------------------
+
 
 class HealthResponse(BaseModel):
     """Response for GET /health."""
@@ -38,6 +38,7 @@ class HealthResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Analyse endpoint — POST /v1/analyze
 # ---------------------------------------------------------------------------
+
 
 class AnalyzeRequest(BaseModel):
     """Request body for POST /v1/analyze.
@@ -219,6 +220,7 @@ class AnalyzeResponse(BaseModel):
 # Portfolio endpoint — POST /v1/portfolio
 # ---------------------------------------------------------------------------
 
+
 class PortfolioRequest(BaseModel):
     """Request body for POST /v1/portfolio.
 
@@ -238,32 +240,43 @@ class PortfolioRequest(BaseModel):
             "Keys: domestic_equity, international_equity, emerging_markets, "
             "real_estate, government_bonds, inflation_protected."
         ),
-        examples=[{
-            "domestic_equity": 0.40,
-            "international_equity": 0.15,
-            "emerging_markets": 0.05,
-            "real_estate": 0.15,
-            "government_bonds": 0.15,
-            "inflation_protected": 0.10,
-        }],
+        examples=[
+            {
+                "domestic_equity": 0.40,
+                "international_equity": 0.15,
+                "emerging_markets": 0.05,
+                "real_estate": 0.15,
+                "government_bonds": 0.15,
+                "inflation_protected": 0.10,
+            }
+        ],
     )
     total_value: float = Field(
-        ..., gt=0, description="Total portfolio value (any currency)", examples=[50000.0]
+        ...,
+        gt=0,
+        description="Total portfolio value (any currency)",
+        examples=[50000.0],
     )
     horizon_years: int = Field(
         default=10, ge=1, le=30, description="Projection horizon in years"
     )
     rebalance_threshold: float = Field(
-        default=0.05, ge=0.01, le=0.20,
-        description="Drift threshold for rebalancing (default 5%)"
+        default=0.05,
+        ge=0.01,
+        le=0.20,
+        description="Drift threshold for rebalancing (default 5%)",
     )
 
     @field_validator("current_allocation")
     @classmethod
     def validate_allocation_values(cls, v: dict[str, float]) -> dict[str, float]:
         valid_keys = {
-            "domestic_equity", "international_equity", "emerging_markets",
-            "real_estate", "government_bonds", "inflation_protected",
+            "domestic_equity",
+            "international_equity",
+            "emerging_markets",
+            "real_estate",
+            "government_bonds",
+            "inflation_protected",
         }
         unknown = set(v.keys()) - valid_keys
         if unknown:
@@ -273,9 +286,7 @@ class PortfolioRequest(BaseModel):
             )
         for key, weight in v.items():
             if not (0.0 <= weight <= 1.0):
-                raise ValueError(
-                    f"Weight for '{key}' must be in [0, 1], got {weight}"
-                )
+                raise ValueError(f"Weight for '{key}' must be in [0, 1], got {weight}")
         return v
 
 
@@ -341,6 +352,7 @@ class PortfolioResponse(BaseModel):
 # Simulate endpoint — POST /v1/simulate
 # ---------------------------------------------------------------------------
 
+
 class SimulateRequest(BaseModel):
     """Request body for POST /v1/simulate.
 
@@ -354,20 +366,26 @@ class SimulateRequest(BaseModel):
     horizon_years: int = Field(default=10, ge=1, le=50)
     monthly_contribution: float = Field(default=0.0, ge=0)
     annual_volatility: float | None = Field(
-        default=None, ge=0.01, le=2.0,
+        default=None,
+        ge=0.01,
+        le=2.0,
         description="Annualised volatility as decimal. Defaults to 18% if not provided.",
     )
     capm_required_return: float | None = Field(
-        default=None, ge=0,
+        default=None,
+        ge=0,
         description="From a prior /analyze call. Used as the base return rate.",
     )
     gordon_fair_value: float | None = Field(
-        default=None, ge=0,
+        default=None,
+        ge=0,
         description="From a prior /analyze call. Used in margin of safety calculation.",
     )
     current_price: float | None = Field(default=None, ge=0)
     risk_free_rate: float = Field(
-        default=0.045, ge=0, le=0.20,
+        default=0.045,
+        ge=0,
+        le=0.20,
         description="Risk-free rate for Sharpe ratio (default 4.5%).",
     )
 

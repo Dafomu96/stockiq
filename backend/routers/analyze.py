@@ -24,7 +24,11 @@ import pandas_ta as _ta  # noqa: F401
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from analysis.fundamentals import compute_fundamental_score
-from analysis.scoring import FundamentalOnlyStrategy, WeightedAverageStrategy, run_scoring
+from analysis.scoring import (
+    FundamentalOnlyStrategy,
+    WeightedAverageStrategy,
+    run_scoring,
+)
 from analysis.technical import compute_technical_score
 from backend.dependencies import get_fetcher, log_request
 from backend.mappers import to_analyze_response
@@ -71,24 +75,24 @@ async def analyze(
     t1 = time.monotonic()
     try:
         df = fetcher.get_ohlcv(body.ticker, period=body.period)
-    except InvalidTickerError:
+    except InvalidTickerError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ticker '{body.ticker}' not found. "
-                   "Check the symbol and exchange suffix (e.g. ASML.AS for Euronext).",
-        )
+            "Check the symbol and exchange suffix (e.g. ASML.AS for Euronext).",
+        ) from exc
     except DataFetchError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Data source error: {exc.reason}",
-        )
+        ) from exc
     fetch_ohlcv_ms = round((time.monotonic() - t1) * 1000, 1)
     logger.info(
         "step_fetch_ohlcv",
         extra={
-            "ticker":        body.ticker,
-            "rows":          len(df),
-            "duration_ms":   fetch_ohlcv_ms,
+            "ticker": body.ticker,
+            "rows": len(df),
+            "duration_ms": fetch_ohlcv_ms,
         },
     )
 
@@ -100,14 +104,14 @@ async def analyze(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
-        )
+        ) from exc
     fetch_info_ms = round((time.monotonic() - t2) * 1000, 1)
     logger.info(
         "step_fetch_info",
         extra={
-            "ticker":      body.ticker,
-            "sector":      info.get("sector"),
-            "beta":        info.get("beta"),
+            "ticker": body.ticker,
+            "sector": info.get("sector"),
+            "beta": info.get("beta"),
             "duration_ms": fetch_info_ms,
         },
     )
@@ -156,9 +160,9 @@ async def analyze(
     logger.info(
         "step_fundamental",
         extra={
-            "ticker":      body.ticker,
-            "score":       fundamental.score,
-            "signal":      fundamental.signal,
+            "ticker": body.ticker,
+            "score": fundamental.score,
+            "signal": fundamental.signal,
             "capm_return": round(fundamental.capm.required_return, 4),
             "duration_ms": fundamental_ms,
         },
@@ -175,15 +179,15 @@ async def analyze(
                 f"Insufficient price history: need {exc.required} bars, "
                 f"got {exc.available}. Try period='2y'."
             ),
-        )
+        ) from exc
     technical_ms = round((time.monotonic() - t6) * 1000, 1)
     logger.info(
         "step_technical",
         extra={
-            "ticker":      body.ticker,
-            "score":       technical.score,
-            "signal":      technical.signal,
-            "warnings":    len(technical.data_quality_warnings),
+            "ticker": body.ticker,
+            "score": technical.score,
+            "signal": technical.signal,
+            "warnings": len(technical.data_quality_warnings),
             "duration_ms": technical_ms,
         },
     )
@@ -203,17 +207,17 @@ async def analyze(
     logger.info(
         "pipeline_completed",
         extra={
-            "ticker":         body.ticker,
+            "ticker": body.ticker,
             "composite_score": result.composite_score,
-            "signal":          result.signal,
-            "confidence":      result.confidence,
-            "fetch_ohlcv_ms":  fetch_ohlcv_ms,
-            "fetch_info_ms":   fetch_info_ms,
-            "indicators_ms":   indicators_ms,
-            "fundamental_ms":  fundamental_ms,
-            "technical_ms":    technical_ms,
-            "scoring_ms":      scoring_ms,
-            "total_ms":        total_ms,
+            "signal": result.signal,
+            "confidence": result.confidence,
+            "fetch_ohlcv_ms": fetch_ohlcv_ms,
+            "fetch_info_ms": fetch_info_ms,
+            "indicators_ms": indicators_ms,
+            "fundamental_ms": fundamental_ms,
+            "technical_ms": technical_ms,
+            "scoring_ms": scoring_ms,
+            "total_ms": total_ms,
         },
     )
 

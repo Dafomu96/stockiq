@@ -14,23 +14,23 @@ Test organisation:
 Each test name follows: test_<condition>_<expected_outcome>
 """
 
-import math
+from dataclasses import FrozenInstanceError
 
 import pytest
 
 from analysis.fundamentals import (
     compute_capm,
+    compute_fundamental_score,
     compute_gordon,
     compute_pdv,
     compute_pe_ratio,
-    compute_fundamental_score,
 )
 from config.exceptions import ModelAssumptionError
-
 
 # ---------------------------------------------------------------------------
 # TestCAPM
 # ---------------------------------------------------------------------------
+
 
 class TestCAPM:
     """Capital Asset Pricing Model: r_i = r_f + β · (r_m - r_f)"""
@@ -61,6 +61,7 @@ class TestCAPM:
 
     def test_defaults_to_settings_market_return(self):
         from config.settings import settings
+
         result = compute_capm(beta=1.0, risk_free_rate=0.04)
         assert result.market_return == settings.market_return
 
@@ -74,7 +75,7 @@ class TestCAPM:
 
     def test_result_is_immutable_dataclass(self):
         result = compute_capm(beta=1.0, risk_free_rate=0.045)
-        with pytest.raises(Exception):  # frozen=True raises FrozenInstanceError
+        with pytest.raises(FrozenInstanceError):
             result.beta = 2.0  # type: ignore[misc]
 
     def test_high_beta_stock_has_higher_required_return(self):
@@ -87,38 +88,47 @@ class TestCAPM:
 # TestGordonGrowth
 # ---------------------------------------------------------------------------
 
+
 class TestGordonGrowth:
     """Gordon Growth Model: P = D / (r - g)"""
 
     def test_standard_inputs_compute_fair_value(self):
         # P = 0.96 / (0.098 - 0.05) = 0.96 / 0.048 = 20.0
         result = compute_gordon(
-            dividend=0.96, discount_rate=0.098,
-            growth_rate=0.05, current_price=182.40,
+            dividend=0.96,
+            discount_rate=0.098,
+            growth_rate=0.05,
+            current_price=182.40,
         )
         assert result.fair_value == pytest.approx(20.0, abs=0.01)
 
     def test_upside_pct_positive_when_undervalued(self):
         # fair_value > current_price → positive upside
         result = compute_gordon(
-            dividend=10.0, discount_rate=0.08,
-            growth_rate=0.03, current_price=100.0,
+            dividend=10.0,
+            discount_rate=0.08,
+            growth_rate=0.03,
+            current_price=100.0,
         )
         # fair = 10 / 0.05 = 200.0 → upside = (200/100 - 1) * 100 = 100%
         assert result.upside_pct == pytest.approx(100.0, abs=0.1)
 
     def test_upside_pct_negative_when_overvalued(self):
         result = compute_gordon(
-            dividend=1.0, discount_rate=0.10,
-            growth_rate=0.05, current_price=1_000.0,
+            dividend=1.0,
+            discount_rate=0.10,
+            growth_rate=0.05,
+            current_price=1_000.0,
         )
         # fair = 1 / 0.05 = 20.0 → very overvalued
         assert result.upside_pct < 0
 
     def test_zero_dividend_returns_none_fair_value(self):
         result = compute_gordon(
-            dividend=0.0, discount_rate=0.098,
-            growth_rate=0.05, current_price=182.40,
+            dividend=0.0,
+            discount_rate=0.098,
+            growth_rate=0.05,
+            current_price=182.40,
         )
         assert result.fair_value is None
         assert result.assumption_warning is not None
@@ -127,31 +137,39 @@ class TestGordonGrowth:
     def test_negative_dividend_treated_as_zero(self):
         """Negative dividend is financially impossible — treated as zero."""
         result = compute_gordon(
-            dividend=-1.0, discount_rate=0.098,
-            growth_rate=0.05, current_price=100.0,
+            dividend=-1.0,
+            discount_rate=0.098,
+            growth_rate=0.05,
+            current_price=100.0,
         )
         assert result.fair_value is None
 
     def test_g_equal_r_raises_model_assumption_error(self):
         with pytest.raises(ModelAssumptionError) as exc_info:
             compute_gordon(
-                dividend=1.0, discount_rate=0.05,
-                growth_rate=0.05, current_price=100.0,
+                dividend=1.0,
+                discount_rate=0.05,
+                growth_rate=0.05,
+                current_price=100.0,
             )
         assert "Gordon Growth Model" in str(exc_info.value)
 
     def test_g_greater_than_r_raises_model_assumption_error(self):
         with pytest.raises(ModelAssumptionError):
             compute_gordon(
-                dividend=1.0, discount_rate=0.05,
-                growth_rate=0.08, current_price=100.0,
+                dividend=1.0,
+                discount_rate=0.05,
+                growth_rate=0.08,
+                current_price=100.0,
             )
 
     def test_growth_rate_capped_at_settings_max(self):
         from config.settings import settings
+
         # growth_rate above cap should be silently reduced and produce a warning
         result = compute_gordon(
-            dividend=1.0, discount_rate=0.12,
+            dividend=1.0,
+            discount_rate=0.12,
             growth_rate=0.20,  # above settings.gordon_growth_max
             current_price=100.0,
         )
@@ -160,8 +178,10 @@ class TestGordonGrowth:
 
     def test_result_values_are_rounded(self):
         result = compute_gordon(
-            dividend=0.96, discount_rate=0.098,
-            growth_rate=0.05, current_price=182.40,
+            dividend=0.96,
+            discount_rate=0.098,
+            growth_rate=0.05,
+            current_price=182.40,
         )
         # Should not have excessive decimal places
         assert result.fair_value is not None
@@ -171,6 +191,7 @@ class TestGordonGrowth:
 # ---------------------------------------------------------------------------
 # TestPDV
 # ---------------------------------------------------------------------------
+
 
 class TestPDV:
     """Present Discounted Value of a finite dividend stream."""
@@ -193,8 +214,10 @@ class TestPDV:
 
     def test_terminal_value_adds_to_total(self):
         result = compute_pdv(
-            annual_dividend=1.0, discount_rate=0.10,
-            horizon_years=5, terminal_growth_rate=0.03,
+            annual_dividend=1.0,
+            discount_rate=0.10,
+            horizon_years=5,
+            terminal_growth_rate=0.03,
         )
         assert result.terminal_value is not None
         assert result.total_value is not None
@@ -203,8 +226,10 @@ class TestPDV:
     def test_terminal_growth_equal_to_discount_raises(self):
         with pytest.raises(ModelAssumptionError):
             compute_pdv(
-                annual_dividend=1.0, discount_rate=0.10,
-                horizon_years=5, terminal_growth_rate=0.10,
+                annual_dividend=1.0,
+                discount_rate=0.10,
+                horizon_years=5,
+                terminal_growth_rate=0.10,
             )
 
     def test_raises_on_zero_horizon(self):
@@ -225,37 +250,50 @@ class TestPDV:
 # TestPERatio
 # ---------------------------------------------------------------------------
 
+
 class TestPERatio:
     """P/E ratio analysis."""
 
     def test_overvalued_when_actual_pe_much_higher_than_theoretical(self):
         # theoretical = 1/(0.10-0.03) = ~14.3. actual=50 → gap=35.7 → overvalued
         result = compute_pe_ratio(
-            current_price=100.0, trailing_pe=50.0, forward_pe=45.0,
-            discount_rate=0.10, growth_rate=0.03,
+            current_price=100.0,
+            trailing_pe=50.0,
+            forward_pe=45.0,
+            discount_rate=0.10,
+            growth_rate=0.03,
         )
         assert result.interpretation == "overvalued"
 
     def test_undervalued_when_actual_pe_well_below_theoretical(self):
         # theoretical = 1/(0.10-0.03) = ~14.3. actual=8 → gap=-6.3 → undervalued
         result = compute_pe_ratio(
-            current_price=100.0, trailing_pe=8.0, forward_pe=7.5,
-            discount_rate=0.10, growth_rate=0.03,
+            current_price=100.0,
+            trailing_pe=8.0,
+            forward_pe=7.5,
+            discount_rate=0.10,
+            growth_rate=0.03,
         )
         assert result.interpretation == "undervalued"
 
     def test_fairly_valued_when_pe_close_to_theoretical(self):
         # theoretical = 1/(0.10-0.03) = 14.3. actual=15 → gap=0.7 → fairly valued
         result = compute_pe_ratio(
-            current_price=100.0, trailing_pe=15.0, forward_pe=14.0,
-            discount_rate=0.10, growth_rate=0.03,
+            current_price=100.0,
+            trailing_pe=15.0,
+            forward_pe=14.0,
+            discount_rate=0.10,
+            growth_rate=0.03,
         )
         assert result.interpretation == "fairly_valued"
 
     def test_insufficient_data_when_pe_is_none(self):
         result = compute_pe_ratio(
-            current_price=100.0, trailing_pe=None, forward_pe=None,
-            discount_rate=0.10, growth_rate=0.03,
+            current_price=100.0,
+            trailing_pe=None,
+            forward_pe=None,
+            discount_rate=0.10,
+            growth_rate=0.03,
         )
         assert result.interpretation == "insufficient_data"
         assert result.pe_gap is None
@@ -263,23 +301,32 @@ class TestPERatio:
     def test_insufficient_data_when_pe_is_negative(self):
         """Negative P/E (company losing money) → can't interpret."""
         result = compute_pe_ratio(
-            current_price=100.0, trailing_pe=-5.0, forward_pe=None,
-            discount_rate=0.10, growth_rate=0.03,
+            current_price=100.0,
+            trailing_pe=-5.0,
+            forward_pe=None,
+            discount_rate=0.10,
+            growth_rate=0.03,
         )
         assert result.interpretation == "insufficient_data"
 
     def test_theoretical_pe_computed_correctly(self):
         # theoretical = 1 / (0.10 - 0.03) = 14.285...
         result = compute_pe_ratio(
-            current_price=100.0, trailing_pe=14.0, forward_pe=None,
-            discount_rate=0.10, growth_rate=0.03,
+            current_price=100.0,
+            trailing_pe=14.0,
+            forward_pe=None,
+            discount_rate=0.10,
+            growth_rate=0.03,
         )
         assert result.theoretical_pe == pytest.approx(14.29, abs=0.1)
 
     def test_pe_gap_is_actual_minus_theoretical(self):
         result = compute_pe_ratio(
-            current_price=100.0, trailing_pe=20.0, forward_pe=None,
-            discount_rate=0.10, growth_rate=0.03,
+            current_price=100.0,
+            trailing_pe=20.0,
+            forward_pe=None,
+            discount_rate=0.10,
+            growth_rate=0.03,
         )
         assert result.pe_gap == pytest.approx(20.0 - result.theoretical_pe, abs=0.1)  # type: ignore[operator]
 
@@ -288,21 +335,22 @@ class TestPERatio:
 # TestFundamentalScore — integration-style
 # ---------------------------------------------------------------------------
 
+
 class TestFundamentalScore:
     """compute_fundamental_score() — tests the composite scoring logic."""
 
     def _standard_inputs(self, **overrides):
         """Helper: returns a dict of standard inputs, optionally overridden."""
-        base = dict(
-            current_price=182.40,
-            beta=1.24,
-            trailing_pe=28.5,
-            forward_pe=25.0,
-            dividend_rate=0.96,
-            dividend_yield=0.0053,
-            earnings_growth=0.05,
-            risk_free_rate=0.045,
-        )
+        base = {
+            "current_price": 182.40,
+            "beta": 1.24,
+            "trailing_pe": 28.5,
+            "forward_pe": 25.0,
+            "dividend_rate": 0.96,
+            "dividend_yield": 0.0053,
+            "earnings_growth": 0.05,
+            "risk_free_rate": 0.045,
+        }
         base.update(overrides)
         return base
 
@@ -339,7 +387,9 @@ class TestFundamentalScore:
         assert any("fallback" in n.lower() for n in result.notes)
 
     def test_none_earnings_growth_falls_back_gracefully(self):
-        result = compute_fundamental_score(**self._standard_inputs(earnings_growth=None))
+        result = compute_fundamental_score(
+            **self._standard_inputs(earnings_growth=None)
+        )
         assert 0.0 <= result.score <= 100.0
 
     def test_high_risk_asset_scores_lower_than_low_risk(self):
@@ -348,8 +398,12 @@ class TestFundamentalScore:
         assert low_risk.score > high_risk.score
 
     def test_undervalued_pe_increases_score(self):
-        overvalued = compute_fundamental_score(**self._standard_inputs(trailing_pe=80.0))
-        undervalued = compute_fundamental_score(**self._standard_inputs(trailing_pe=5.0))
+        overvalued = compute_fundamental_score(
+            **self._standard_inputs(trailing_pe=80.0)
+        )
+        undervalued = compute_fundamental_score(
+            **self._standard_inputs(trailing_pe=5.0)
+        )
         assert undervalued.score > overvalued.score
 
     def test_dividend_yield_adds_bonus_points(self):
@@ -359,8 +413,10 @@ class TestFundamentalScore:
         high_yield = compute_fundamental_score(
             **self._standard_inputs(dividend_rate=5.0, dividend_yield=0.05)
         )
-        # High yield should contribute positively
-        assert "dividend" in " ".join(high_yield.notes).lower()
+        # The bonus note appears only when there is a dividend. (The total score can
+        # still go down: a dividend also turns on the Gordon model.)
+        assert "bonus" in " ".join(high_yield.notes).lower()
+        assert "bonus" not in " ".join(no_yield.notes).lower()
 
     def test_score_never_exceeds_100(self):
         """Even with the best possible inputs, score is capped at 100."""
@@ -369,7 +425,7 @@ class TestFundamentalScore:
             beta=0.1,
             trailing_pe=2.0,
             forward_pe=1.5,
-            dividend_rate=5.0,   # very generous dividend
+            dividend_rate=5.0,  # very generous dividend
             dividend_yield=0.50,
             earnings_growth=0.02,
             risk_free_rate=0.045,
