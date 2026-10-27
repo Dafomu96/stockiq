@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/Dafomu96/stockiq/actions/workflows/ci.yml/badge.svg)
 ![Coverage](https://codecov.io/gh/Dafomu96/stockiq/branch/main/graph/badge.svg)
-![Python](https://img.shields.io/badge/python-3.11-blue)
+![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688)
 ![React](https://img.shields.io/badge/React-18-61DAFB)
 ![License](https://img.shields.io/badge/license-MIT-green)

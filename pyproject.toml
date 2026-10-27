@@ -1,5 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "--cov=. --cov-report=term-missing --cov-fail-under=85 --asyncio-mode=auto"
 # --asyncio-mode=auto: required for FastAPI integration tests (test_api.py)
 # --cov-fail-under=85: enforced in CI — coverage drops break the build
@@ -9,7 +10,7 @@ omit = ["tests/*", "app/*", "frontend/*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
@@ -24,7 +25,7 @@ select = [
 ignore = ["E501"]  # line length handled by black
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 ignore_missing_imports = true
 # strict = true enables: disallow_untyped_defs, warn_return_any,

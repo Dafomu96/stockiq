@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # StockIQ — Unix/Mac setup script
 # Usage: bash setup.sh
-# Requires: Python 3.11+, Node 20+
+# Requires: Python 3.12+, Node 20+
 
 set -e
 BOLD=$(tput bold 2>/dev/null || echo "")

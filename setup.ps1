@@ -1,6 +1,6 @@
 # StockIQ — Windows PowerShell setup script
 # Usage: .\setup.ps1
-# Requires: Python 3.11+, Node 20+
+# Requires: Python 3.12+, Node 20+
 
 $ErrorActionPreference = "Stop"
 

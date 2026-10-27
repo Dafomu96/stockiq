@@ -1,6 +1,6 @@
 # StockIQ — Makefile
 # Usage: make <target>
-# Requires: Python 3.11+, Node 20+, Git
+# Requires: Python 3.12+, Node 20+, Git
 
 .PHONY: setup install test lint format typecheck docker clean help
 
