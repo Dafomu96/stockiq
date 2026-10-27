@@ -17,6 +17,9 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - `MarketDataFetcher.rf_source`: where the last risk-free rate came from.
 
 ### Fixed
+- Dividend yield read 100x too high: Yahoo now reports `dividendYield` in percent, so a
+  0.31% yield counted as 31% and every dividend payer got the maximum +10 bonus. The fetcher
+  now computes it as dividend / price (a decimal).
 - A FRED outage cached the 4.5% fallback risk-free rate for 7 days; the fallback is no
   longer cached.
 - Blocked or offline yfinance downloads were reported as unknown tickers; they now raise

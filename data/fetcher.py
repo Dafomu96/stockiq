@@ -59,6 +59,29 @@ _NETWORK_ERROR_MARKERS = (
 )
 
 
+def _dividend_yield(raw: dict[str, Any]) -> float | None:
+    """Dividend yield as a decimal (0.0053 = 0.53%).
+
+    Yahoo's ``dividendYield`` switched from a decimal to a percentage in
+    2025 (Apple shows 0.31 for 0.31%), and the scoring code expects a
+    decimal: a 0.31% yield was read as 31% and every dividend payer got the
+    maximum dividend bonus. Compute it from the dividend and the price,
+    which has no unit ambiguity; if the dividend is missing, convert
+    Yahoo's percentage.
+    """
+    rate = raw.get("dividendRate")
+    price = raw.get("regularMarketPrice")
+    try:
+        if rate is not None and price:
+            return round(float(rate) / float(price), 6)
+        reported = raw.get("dividendYield")
+        if reported is not None:
+            return round(float(reported) / 100, 6)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+    return None
+
+
 def _download_error(ticker: str) -> str | None:
     """Return the error yfinance recorded for *ticker* in its last download.
 
@@ -368,4 +391,6 @@ class MarketDataFetcher:
             "regularMarketPrice",
             "regularMarketPreviousClose",
         ]
-        return {field: raw.get(field) for field in fields}
+        info = {field: raw.get(field) for field in fields}
+        info["dividendYield"] = _dividend_yield(raw)
+        return info

@@ -218,6 +218,35 @@ class TestGetFundamentalInfo:
         assert "dividendRate" in info
         assert info["shortName"] == "Apple Inc."
 
+    def test_dividend_yield_is_a_decimal_from_rate_and_price(self, fetcher):
+        """Yahoo reports dividendYield in percent (0.31 = 0.31%) since 2025."""
+        mock_ticker = MagicMock()
+        mock_ticker.info = {
+            "regularMarketPrice": 345.54,
+            "dividendRate": 1.08,
+            "dividendYield": 0.31,
+        }
+        with patch("data.fetcher.yf.Ticker", return_value=mock_ticker):
+            info = fetcher.get_fundamental_info("AAPL")
+
+        assert info["dividendYield"] == pytest.approx(0.003126, abs=1e-6)
+
+    def test_dividend_yield_falls_back_to_reported_percentage(self, fetcher):
+        mock_ticker = MagicMock()
+        mock_ticker.info = {"regularMarketPrice": 100.0, "dividendYield": 2.5}
+        with patch("data.fetcher.yf.Ticker", return_value=mock_ticker):
+            info = fetcher.get_fundamental_info("XYZ")
+
+        assert info["dividendYield"] == pytest.approx(0.025)
+
+    def test_no_dividend_gives_none(self, fetcher):
+        mock_ticker = MagicMock()
+        mock_ticker.info = {"regularMarketPrice": 100.0}
+        with patch("data.fetcher.yf.Ticker", return_value=mock_ticker):
+            info = fetcher.get_fundamental_info("XYZ")
+
+        assert info["dividendYield"] is None
+
     def test_missing_fields_are_none_not_keyerror(self, fetcher):
         """If yfinance omits a field, we return None — never KeyError."""
         sparse_info = {"regularMarketPrice": 100.0}  # most fields missing
