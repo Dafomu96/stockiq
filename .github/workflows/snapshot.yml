@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Weekly score snapshot
+#
+# Every Saturday, scores each ticker in snapshots/watchlist.txt and appends
+# the rows to snapshots/scores.csv, then commits the file back to main.
+# Free on GitHub Actions (a few minutes a week). No API keys: yfinance and
+# the FRED CSV are public.
+#
+# Run it by hand from the Actions tab ("Run workflow") to test it.
+# The commit is pushed with GITHUB_TOKEN, so it does not trigger the CI
+# workflow.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Weekly snapshot
+
+on:
+  schedule:
+    # Saturdays 08:00 UTC: Friday's close is in for US and European markets.
+    - cron: "0 8 * * 6"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Score the watchlist
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run snapshot
+        env:
+          STOCKIQ_CACHE_DIR: ${{ runner.temp }}/stockiq-cache
+        run: python -m scripts.snapshot --pause 2
+
+      # Runs even if every ticker failed, so the error rows are kept too.
+      - name: Commit new rows
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add snapshots/
+          if git diff --cached --quiet; then
+            echo "No new rows to commit."
+            exit 0
+          fi
+          git commit -m "data(snapshots): weekly scores $(date -u +%Y-%m-%d)"
+          git pull --rebase
+          git push

@@ -75,6 +75,7 @@ jobs:
             analysis/ \
             simulation/ \
             backend/ \
+            scripts/ \
             --ignore-missing-imports \
             --no-strict-optional
 

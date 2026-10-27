@@ -1,0 +1,28 @@
+# Tickers for the weekly snapshot (scripts/snapshot.py).
+# One Yahoo Finance symbol per line; "#" starts a comment.
+# Keep the list fairly stable: the history is only useful if the same
+# companies are scored week after week. Around 20-30 tickers is plenty.
+
+# United States
+AAPL
+MSFT
+GOOGL
+AMZN
+NVDA
+META
+JPM
+V
+JNJ
+PG
+KO
+XOM
+NKE
+TSLA
+
+# Europe
+ASML.AS
+SAP.DE
+MC.PA
+SAN.MC
+ITX.MC
+IBE.MC

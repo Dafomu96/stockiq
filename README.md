@@ -31,6 +31,7 @@ Long-term investment analysis tool combining three intellectual frameworks:
 - **Global ticker support**: Yahoo Finance format, exchange suffixes (ASML.AS, 7203.T, SAN.MC)
 - **REST API** (FastAPI): `/v1/analyze`, `/v1/portfolio`, `/v1/simulate` with OpenAPI docs
 - **React frontend**: Vite + Tailwind + Recharts, served via nginx, proxies the FastAPI backend
+- **Weekly snapshots**: a free GitHub Actions job scores a watchlist every Saturday and keeps the history in a CSV (see below)
 
 ---
 
@@ -48,6 +49,7 @@ stockiq/
 │   ├── fundamentals.py    # CAPM, Gordon Growth Model, P/E, PDV
 │   ├── technical.py       # RSI, MACD, Bollinger Bands, SMA, OBV, ADX
 │   ├── scoring.py         # Strategy Pattern composite scorer (ADR-003)
+│   ├── pipeline.py        # Shared single-ticker pipeline (indicators + scores)
 │   └── swensen.py         # 6-asset allocation, rebalancing, ETF mapping
 ├── simulation/
 │   └── simulator.py       # P&L projections, DCA, VaR, Sharpe, break-even
@@ -72,7 +74,12 @@ stockiq/
 ├── i18n/
 │   ├── en.json            # 85 English UI strings
 │   └── es.json            # 85 Spanish UI strings
-├── tests/                 # 349 tests, 94% coverage, 100% offline
+├── scripts/
+│   └── snapshot.py        # Weekly watchlist snapshot job
+├── snapshots/
+│   ├── watchlist.txt      # Tickers scored every week
+│   └── scores.csv         # History, appended by the job (created on first run)
+├── tests/                 # 380 tests, 94% coverage, 100% offline
 └── docs/adr/              # ADR-001 through ADR-007
 ```
 
@@ -155,7 +162,43 @@ pytest tests/ --asyncio-mode=auto --cov=.     # with coverage
 pytest tests/test_api.py --asyncio-mode=auto  # API tests only
 ```
 
-Coverage is enforced at ≥85% in CI. All 349 tests run offline — no network calls.
+Coverage is enforced at ≥85% in CI. All 380 tests run offline — no network calls.
+
+---
+
+## Weekly snapshots
+
+The scores are not validated yet: nothing shows that a high score predicts better returns.
+Checking that needs the fundamentals as they were on each date, and yfinance only gives
+today's values. So StockIQ records them itself: every Saturday a GitHub Actions job
+(`.github/workflows/snapshot.yml`) scores each ticker in `snapshots/watchlist.txt` and
+appends one row per ticker to `snapshots/scores.csv`. After some months, the stored scores
+can be compared with what prices did next.
+
+Each row keeps the scores, the last close and its date, the benchmark close (SPY), the raw
+fundamental inputs (beta, P/E, dividend, earnings growth), the risk-free rate and whether it
+was the default fallback, and the commit that produced it. With the inputs stored, the scores
+can be recomputed if the model changes. Failed tickers are stored as `status=error` rows with
+the reason, so gaps in the history are visible.
+
+```bash
+python -m scripts.snapshot                 # run it locally (same files)
+python -m scripts.snapshot --pause 0 --out /tmp/test.csv   # quick test run
+```
+
+In GitHub: **Actions → Weekly snapshot → Run workflow** runs it by hand. It costs nothing on
+a public repository and uses a few minutes a week of the free allowance on a private one.
+
+Things to know:
+
+- Yahoo sometimes blocks or rate-limits requests from cloud servers. Those weeks show up as
+  `error` rows (`DataFetchError`); the job only fails when no ticker succeeded.
+- Closes are split- and dividend-adjusted, and old adjusted prices change after later
+  dividends. For returns, download the price history again when you analyse.
+- The benchmark is SPY in USD; European tickers are in EUR.
+- On a public repository the watchlist and the scores are public too.
+- GitHub pauses scheduled workflows in public repositories after 60 days without activity;
+  if that happens it sends an email and the workflow can be re-enabled from the Actions tab.
 
 ---
 

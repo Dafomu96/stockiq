@@ -9,7 +9,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+- Weekly snapshots: `scripts/snapshot.py` scores `snapshots/watchlist.txt` and appends the
+  rows to `snapshots/scores.csv`; `.github/workflows/snapshot.yml` runs it every Saturday.
+- `analysis/pipeline.py`: one shared analysis pipeline instead of three copies of the
+  indicator list (API routers and Streamlit app).
+- `MarketDataFetcher.rf_source`: where the last risk-free rate came from.
+
 ### Fixed
+- A FRED outage cached the 4.5% fallback risk-free rate for 7 days; the fallback is no
+  longer cached.
+- Blocked or offline yfinance downloads were reported as unknown tickers; they now raise
+  `DataFetchError` with the reason.
 - Fresh installs failed: pandas-ta 0.3.14b is no longer on PyPI. Moved to pandas-ta 0.4.71b0
   (the version the code already expected), which needs Python 3.12 and NumPy 2.
 - `pytest tests/` could not start: added the missing pytest-asyncio and removed the root
