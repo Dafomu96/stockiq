@@ -11,7 +11,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 - Weekly snapshots: `scripts/snapshot.py` scores `snapshots/watchlist.txt` and appends the
-  rows to `snapshots/scores.csv`; `.github/workflows/snapshot.yml` runs it every Saturday.
+  rows to one file per year, `snapshots/scores_<year>.csv`, plus an Excel copy
+  (`scores_<year>.xlsx`); `.github/workflows/snapshot.yml` runs it every Saturday.
 - `analysis/pipeline.py`: one shared analysis pipeline instead of three copies of the
   indicator list (API routers and Streamlit app).
 - `MarketDataFetcher.rf_source`: where the last risk-free rate came from.

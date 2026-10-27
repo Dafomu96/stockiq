@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from config.exceptions import DataFetchError, InvalidTickerError
@@ -16,8 +17,10 @@ from scripts.snapshot import (
     COLUMNS,
     RunSummary,
     _num,
+    export_excel,
     format_summary,
     load_watchlist,
+    resolve_out_path,
     run_snapshot,
 )
 
@@ -182,6 +185,70 @@ class TestRunSnapshot:
 
 
 # ---------------------------------------------------------------------------
+# One file per year, Excel copy
+# ---------------------------------------------------------------------------
+
+
+class TestYearlyFiles:
+    def test_resolve_out_path(self):
+        assert resolve_out_path("snapshots/scores_{year}.csv", "2027-01-02") == Path(
+            "snapshots/scores_2027.csv"
+        )
+        assert resolve_out_path(Path("x/scores.csv"), "2027-01-02") == Path(
+            "x/scores.csv"
+        )
+
+    def test_new_year_starts_a_new_file(self, fetcher, tmp_path):
+        template = tmp_path / "scores_{year}.csv"
+        run_snapshot(["AAPL"], fetcher, template, run_date="2026-12-26")
+        summary = run_snapshot(["AAPL"], fetcher, template, run_date="2027-01-02")
+
+        assert summary.csv_path == str(tmp_path / "scores_2027.csv")
+        assert [r["run_date"] for r in _rows(tmp_path / "scores_2026.csv")] == [
+            "2026-12-26"
+        ]
+        assert [r["run_date"] for r in _rows(tmp_path / "scores_2027.csv")] == [
+            "2027-01-02"
+        ]
+
+    def test_excel_copy_matches_the_csv(self, fetcher, tmp_path):
+        template = tmp_path / "scores_{year}.csv"
+        run_snapshot(["AAPL", "MSFT"], fetcher, template, run_date="2026-10-31")
+        summary = run_snapshot(
+            ["AAPL", "MSFT", "KO"], fetcher, template, run_date="2026-11-07", excel=True
+        )
+
+        xlsx = tmp_path / "scores_2026.xlsx"
+        assert summary.excel_path == str(xlsx)
+        df = pd.read_excel(xlsx, sheet_name="2026")
+        assert list(df.columns) == COLUMNS
+        assert len(df) == 5  # rebuilt from the whole year's CSV, not just this run
+        assert pd.api.types.is_datetime64_any_dtype(df["run_date"])
+        assert pd.api.types.is_numeric_dtype(df["composite_score"])
+
+    def test_excel_keeps_error_rows_with_empty_cells(self, fetcher, tmp_path):
+        _fail_for(fetcher, "BAD", DataFetchError("BAD", "blocked"))
+        out = tmp_path / "scores_2026.csv"
+        run_snapshot(["AAPL", "BAD"], fetcher, out, run_date="2026-10-31")
+
+        df = pd.read_excel(export_excel(out))
+        bad = df[df["ticker"] == "BAD"].iloc[0]
+        assert bad["status"] == "error"
+        assert pd.isna(bad["composite_score"])
+        assert pd.isna(bad["price_date"])
+
+    def test_summary_names_the_files(self):
+        text = format_summary(
+            RunSummary(
+                "2026-10-31",
+                csv_path="snapshots/scores_2026.csv",
+                excel_path="snapshots/scores_2026.xlsx",
+            )
+        )
+        assert "snapshots/scores_2026.csv (+ scores_2026.xlsx)" in text
+
+
+# ---------------------------------------------------------------------------
 # Helpers and CLI
 # ---------------------------------------------------------------------------
 
@@ -226,17 +293,42 @@ class TestMain:
         step_summary = tmp_path / "summary.md"
         monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(step_summary))
         monkeypatch.setenv("GITHUB_SHA", "0123456789abcdef")
-        out = tmp_path / "scores.csv"
+        template = tmp_path / "scores_{year}.csv"
 
         code = snapshot.main(
-            ["--watchlist", str(watchlist), "--out", str(out), "--pause", "0"]
+            ["--watchlist", str(watchlist), "--out", str(template), "--pause", "0"]
         )
 
         assert code == 0
+        csv_files = list(tmp_path.glob("scores_*.csv"))
+        assert len(csv_files) == 1
+        out = csv_files[0]
+        assert out.stem[-4:].isdigit()
+        assert out.with_suffix(".xlsx").exists()  # Excel copy is on by default
         rows = _rows(out)
         assert [r["ticker"] for r in rows] == ["AAPL", "MSFT"]
         assert rows[0]["code_version"] == "0123456"
         assert "OK: 2" in step_summary.read_text(encoding="utf-8")
+
+    def test_no_excel_flag(self, fetcher, watchlist, tmp_path, monkeypatch):
+        monkeypatch.setattr(snapshot, "MarketDataFetcher", lambda: fetcher)
+        monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+        out = tmp_path / "scores.csv"
+
+        snapshot.main(
+            [
+                "--watchlist",
+                str(watchlist),
+                "--out",
+                str(out),
+                "--pause",
+                "0",
+                "--no-excel",
+            ]
+        )
+
+        assert out.exists()
+        assert not out.with_suffix(".xlsx").exists()
 
     def test_all_failed_returns_1(self, fetcher, watchlist, tmp_path, monkeypatch):
         fetcher.get_ohlcv.side_effect = DataFetchError("X", "blocked")

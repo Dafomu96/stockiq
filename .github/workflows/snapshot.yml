@@ -2,7 +2,8 @@
 # Weekly score snapshot
 #
 # Every Saturday, scores each ticker in snapshots/watchlist.txt and appends
-# the rows to snapshots/scores.csv, then commits the file back to main.
+# the rows to that year's file (snapshots/scores_2026.csv, then _2027...) plus
+# an Excel copy (scores_2026.xlsx), then commits them back to main.
 # Free on GitHub Actions (a few minutes a week). No API keys: yfinance and
 # the FRED CSV are public.
 #

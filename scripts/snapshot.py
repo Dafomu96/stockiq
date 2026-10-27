@@ -2,7 +2,10 @@
 Weekly score snapshots.
 
 Runs the StockIQ analysis for every ticker in a watchlist and appends one
-row per ticker to a CSV. Run on a schedule (.github/workflows/snapshot.yml)
+row per ticker to a CSV, one file per year (snapshots/scores_2026.csv,
+snapshots/scores_2027.csv, ...), plus an Excel copy of that year's file
+(scores_2026.xlsx) that opens with numbers and dates in any Excel locale.
+Run on a schedule (.github/workflows/snapshot.yml)
 it builds a point-in-time history: the fundamentals yfinance returns today
 are stored with today's date, which yfinance cannot give you afterwards.
 Months later the stored scores can be checked against what prices did.
@@ -13,7 +16,8 @@ so the scores can be recomputed if the model changes.
 Usage:
     python -m scripts.snapshot
     python -m scripts.snapshot --watchlist snapshots/watchlist.txt \\
-        --out snapshots/scores.csv --benchmark SPY --pause 2
+        --out "snapshots/scores_{year}.csv" --benchmark SPY --pause 2
+    python -m scripts.snapshot --no-excel      # CSV only
 """
 
 from __future__ import annotations
@@ -39,7 +43,8 @@ from data.fetcher import MarketDataFetcher
 logger = logging.getLogger("stockiq.snapshot")
 
 DEFAULT_WATCHLIST = Path("snapshots/watchlist.txt")
-DEFAULT_OUT = Path("snapshots/scores.csv")
+# "{year}" is replaced by the year of the run: one file per year.
+DEFAULT_OUT = "snapshots/scores_{year}.csv"
 DEFAULT_BENCHMARK = "SPY"
 PRICE_PERIOD = "1y"  # same history the app uses by default
 
@@ -96,6 +101,8 @@ class RunSummary:
     skipped: list[str] = field(default_factory=list)
     rf_source: str = ""
     benchmark_close: float | None = None
+    csv_path: str = ""
+    excel_path: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +121,43 @@ def load_watchlist(path: Path) -> list[str]:
         if ticker and ticker not in tickers:
             tickers.append(ticker)
     return tickers
+
+
+def resolve_out_path(template: str | Path, run_date: str) -> Path:
+    """Replace ``{year}`` in *template* with the year of *run_date*."""
+    return Path(str(template).replace("{year}", run_date[:4]))
+
+
+def export_excel(csv_path: Path) -> Path:
+    """Write an Excel copy of *csv_path* next to it (same name, .xlsx).
+
+    The CSV stays the source of truth (small, readable diffs in git); the
+    .xlsx is rebuilt from it on every run so it always matches. Dates are
+    real Excel dates and numbers real numbers, so a Spanish-locale Excel
+    reads them correctly.
+    """
+    date_columns = ["run_date", "price_date"]
+    df = pd.read_csv(csv_path, parse_dates=date_columns)
+    for col in date_columns:
+        df[col] = df[col].dt.date  # dates, not midnight datetimes
+    xlsx_path = csv_path.with_suffix(".xlsx")
+    year = csv_path.stem[-4:]
+    sheet = year if year.isdigit() else "scores"
+    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet)
+        ws = writer.sheets[sheet]
+        ws.freeze_panes = "C2"  # keep the header and date/ticker visible
+        ws.auto_filter.ref = ws.dimensions
+        for idx, column in enumerate(ws.columns):
+            if df.columns[idx] in date_columns:
+                for cell in column[1:]:
+                    cell.number_format = "yyyy-mm-dd"
+                width = 10
+            else:
+                width = max(len(str(c.value)) for c in column if c.value is not None)
+            width = max(width, len(str(column[0].value)))
+            ws.column_dimensions[column[0].column_letter].width = min(width + 2, 40)
+    return xlsx_path
 
 
 def _num(value: Any, digits: int = 6) -> float | str:
@@ -218,26 +262,37 @@ def snapshot_ticker(
 def run_snapshot(
     tickers: Sequence[str],
     fetcher: Fetcher,
-    out_path: Path,
+    out_path: str | Path,
     *,
     benchmark: str = DEFAULT_BENCHMARK,
     run_date: str | None = None,
     code_version: str = "local",
     pause_seconds: float = 0.0,
     sleep: Callable[[float], None] = time.sleep,
+    excel: bool = False,
 ) -> RunSummary:
-    """Analyse every ticker and append the rows to *out_path*.
+    """Analyse every ticker and append the rows to the CSV.
+
+    *out_path* may contain ``{year}``; it is replaced by the year of the
+    run, so each year gets its own file. With ``excel=True`` an .xlsx copy
+    of that file is written next to it.
 
     Re-running on the same day skips tickers that already have an "ok" row
     for that date and retries the ones that failed.
     """
     run_date = run_date or datetime.now(UTC).date().isoformat()
+    out_path = resolve_out_path(out_path, run_date)
     done = _read_existing(out_path)
 
     risk_free_rate = fetcher.get_risk_free_rate()
     rf_source = str(getattr(fetcher, "rf_source", None) or "unknown")
     bench_close = _benchmark_close(fetcher, benchmark)
-    summary = RunSummary(run_date, rf_source=rf_source, benchmark_close=bench_close)
+    summary = RunSummary(
+        run_date,
+        rf_source=rf_source,
+        benchmark_close=bench_close,
+        csv_path=str(out_path),
+    )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not out_path.exists() or out_path.stat().st_size == 0
@@ -266,6 +321,9 @@ def run_snapshot(
             writer.writerow(row)
             fh.flush()
             (summary.ok if row["status"] == "ok" else summary.failed).append(ticker)
+
+    if excel:
+        summary.excel_path = str(export_excel(out_path))
     return summary
 
 
@@ -279,6 +337,8 @@ def format_summary(summary: RunSummary) -> str:
         + (f" ({', '.join(summary.failed)})" if summary.failed else ""),
         f"- Already stored today: {len(summary.skipped)}",
         f"- Risk-free rate source: {summary.rf_source}",
+        f"- File: {summary.csv_path}"
+        + (f" (+ {Path(summary.excel_path).name})" if summary.excel_path else ""),
         "- Benchmark close: "
         + (
             "missing"
@@ -294,7 +354,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="Append StockIQ score snapshots for a watchlist to a CSV."
     )
     parser.add_argument("--watchlist", type=Path, default=DEFAULT_WATCHLIST)
-    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--out",
+        default=DEFAULT_OUT,
+        help='CSV path; "{year}" becomes the year of the run (default: %(default)s)',
+    )
+    parser.add_argument(
+        "--no-excel", action="store_true", help="do not write the .xlsx copy"
+    )
     parser.add_argument("--benchmark", default=DEFAULT_BENCHMARK)
     parser.add_argument(
         "--pause", type=float, default=2.0, help="seconds to wait between tickers"
@@ -315,6 +382,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         benchmark=args.benchmark,
         code_version=os.environ.get("GITHUB_SHA", "local")[:7],
         pause_seconds=args.pause,
+        excel=not args.no_excel,
     )
 
     text = format_summary(summary)

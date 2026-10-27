@@ -12,6 +12,7 @@ requests~=2.31.0
 pandas-ta==0.4.71b0   # 0.3.x was removed from PyPI; 0.4 needs Python 3.12
 scipy~=1.13.0
 statsmodels~=0.14.0
+openpyxl~=3.1.5      # Excel copies of the snapshot files
 
 # --- Config ---
 pydantic~=2.7.0

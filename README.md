@@ -78,7 +78,8 @@ stockiq/
 │   └── snapshot.py        # Weekly watchlist snapshot job
 ├── snapshots/
 │   ├── watchlist.txt      # Tickers scored every week
-│   └── scores.csv         # History, appended by the job (created on first run)
+│   ├── scores_2026.csv    # History, one file per year, appended by the job
+│   └── scores_2026.xlsx   # Excel copy of that year's file, rebuilt every run
 ├── tests/                 # 380 tests, 94% coverage, 100% offline
 └── docs/adr/              # ADR-001 through ADR-007
 ```
@@ -172,8 +173,10 @@ The scores are not validated yet: nothing shows that a high score predicts bette
 Checking that needs the fundamentals as they were on each date, and yfinance only gives
 today's values. So StockIQ records them itself: every Saturday a GitHub Actions job
 (`.github/workflows/snapshot.yml`) scores each ticker in `snapshots/watchlist.txt` and
-appends one row per ticker to `snapshots/scores.csv`. After some months, the stored scores
-can be compared with what prices did next.
+appends one row per ticker to that year's file, `snapshots/scores_<year>.csv` (a new file
+starts each January). Next to it, `scores_<year>.xlsx` is an Excel copy rebuilt on every run,
+with real dates and numbers, so it opens correctly in any Excel locale; the CSV is the source
+of truth. After some months, the stored scores can be compared with what prices did next.
 
 Each row keeps the scores, the last close and its date, the benchmark close (SPY), the raw
 fundamental inputs (beta, P/E, dividend, earnings growth), the risk-free rate and whether it
@@ -183,7 +186,7 @@ the reason, so gaps in the history are visible.
 
 ```bash
 python -m scripts.snapshot                 # run it locally (same files)
-python -m scripts.snapshot --pause 0 --out /tmp/test.csv   # quick test run
+python -m scripts.snapshot --pause 0 --out test.csv --no-excel   # quick test run
 ```
 
 In GitHub: **Actions → Weekly snapshot → Run workflow** runs it by hand. It costs nothing on
