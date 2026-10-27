@@ -141,6 +141,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: stockiq-api:ci-${{ github.sha }}
+          # Buildx keeps images in its own builder; load this one into the
+          # local Docker daemon so the smoke test below can `docker run` it.
+          load: true
 
       - name: Build Streamlit image
         uses: docker/build-push-action@v5

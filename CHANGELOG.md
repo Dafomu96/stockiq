@@ -21,6 +21,9 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - `MarketDataFetcher.rf_source`: where the last risk-free rate came from.
 
 ### Fixed
+- Docker: `import pandas_ta` crashed in both images (numba could not write its cache as the
+  non-root user); `NUMBA_CACHE_DIR` now points to /tmp. The CI smoke test also never ran the
+  image, because buildx did not load it into the local daemon (`load: true`).
 - Dividend yield read 100x too high: Yahoo now reports `dividendYield` in percent, so a
   0.31% yield counted as 31% and every dividend payer got the maximum +10 bonus. The fetcher
   now computes it as dividend / price (a decimal).

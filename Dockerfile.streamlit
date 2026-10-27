@@ -29,7 +29,11 @@ FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH="/app"
+    PYTHONPATH="/app" \
+    # pandas-ta compiles indicators with numba (cache=True). The non-root user
+    # cannot write next to site-packages and has no home directory, so without
+    # this "import pandas_ta" fails with "no locator available".
+    NUMBA_CACHE_DIR="/tmp/numba_cache"
 
 WORKDIR /app
 

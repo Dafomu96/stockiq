@@ -42,7 +42,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     # Activate the venv from builder
     PATH="/opt/venv/bin:$PATH" \
     # Ensure project root is importable
-    PYTHONPATH="/app"
+    PYTHONPATH="/app" \
+    # pandas-ta compiles indicators with numba (cache=True). The non-root user
+    # cannot write next to site-packages and has no home directory, so without
+    # this "import pandas_ta" fails with "no locator available".
+    NUMBA_CACHE_DIR="/tmp/numba_cache"
 
 WORKDIR /app
 
