@@ -72,13 +72,15 @@ stockiq/
 ├── i18n/
 │   ├── en.json            # 85 English UI strings
 │   └── es.json            # 85 Spanish UI strings
-├── tests/                 # 319 tests, 96% coverage, 100% offline
-└── docs/adr/              # ADR-001 through ADR-005
+├── tests/                 # 349 tests, 94% coverage, 100% offline
+└── docs/adr/              # ADR-001 through ADR-007
 ```
 
 ---
 
 ## Quick start
+
+Requires Python 3.12+ (pandas-ta 0.4 needs it).
 
 ```bash
 git clone https://github.com/Dafomu96/stockiq.git
@@ -153,7 +155,7 @@ pytest tests/ --asyncio-mode=auto --cov=.     # with coverage
 pytest tests/test_api.py --asyncio-mode=auto  # API tests only
 ```
 
-Coverage is enforced at ≥85% in CI. All 319 tests run offline — no network calls.
+Coverage is enforced at ≥85% in CI. All 349 tests run offline — no network calls.
 
 ---
 

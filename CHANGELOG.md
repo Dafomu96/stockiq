@@ -9,6 +9,13 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+- Fresh installs failed: pandas-ta 0.3.14b is no longer on PyPI. Moved to pandas-ta 0.4.71b0
+  (the version the code already expected), which needs Python 3.12 and NumPy 2.
+- `pytest tests/` could not start: added the missing pytest-asyncio and removed the root
+  `__init__.py` that broke package imports.
+- CI quality job: code formatted with black, ruff and mypy errors fixed.
+
 ### Planned
 - Rebalancing alerts (email/webhook when drift exceeds 5pp) — requires scheduler + notification infrastructure
 - Redis cache backend (replaces JSON file cache for production)
